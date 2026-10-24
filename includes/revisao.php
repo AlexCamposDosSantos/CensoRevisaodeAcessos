@@ -80,6 +80,8 @@ function revisao_estrutura(): void
             justificativa TEXT,
             vinculo       TEXT NOT NULL,
             linha         INTEGER,
+            lider_nome    TEXT,
+            lider_email   TEXT,
             PRIMARY KEY (revisao_id, codigo)
         );
         CREATE TABLE IF NOT EXISTS revisados (
@@ -92,6 +94,9 @@ function revisao_estrutura(): void
             PRIMARY KEY (revisao_id, codigo)
         );
     ");
+    // Bases criadas antes das colunas de líder ganham as colunas (vazias)
+    $cols = array_column($pdo->query('PRAGMA table_info(base_pessoas)')->fetchAll(), 'name');
+    foreach (['lider_nome', 'lider_email'] as $c) if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE base_pessoas ADD COLUMN {$c} TEXT");
 }
 
 // ─── Revisões ────────────────────────────────────────────────────────────────
@@ -160,10 +165,11 @@ function revisao_criar(string $nome, string $inicio, array $arquivos, int $usuar
                 ->execute([$id, $tipo, $a['nome'], $dest, filesize($a['tmp']), hash_file('sha256', $a['tmp']), count($a['linhas']), $usuario]);
 
             if ($tipo === 'base') {
-                $ins = $pdo->prepare('INSERT OR REPLACE INTO base_pessoas (revisao_id, codigo, id_unico, nome, enviado, justificativa, vinculo, linha)
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                $ins = $pdo->prepare('INSERT OR REPLACE INTO base_pessoas (revisao_id, codigo, id_unico, nome, enviado, justificativa, vinculo, linha, lider_nome, lider_email)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 foreach ($a['linhas'] as $l) {
-                    $ins->execute([$id, $l['codigo'], $l['id_unico'] ?? '', $l['nome'], $l['enviado'], $l['justificativa'] ?? '', $l['vinculo'], $l['_linha']]);
+                    $ins->execute([$id, $l['codigo'], $l['id_unico'] ?? '', $l['nome'], $l['enviado'], $l['justificativa'] ?? '', $l['vinculo'], $l['_linha'],
+                                    trim($l['lider_nome'] ?? ''), strtolower(trim($l['lider_email'] ?? ''))]);
                 }
             }
         }

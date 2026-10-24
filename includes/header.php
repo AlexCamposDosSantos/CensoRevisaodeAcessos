@@ -44,14 +44,28 @@ $ativo    = fn(string $trecho) => str_contains($uri, $trecho) ? 'active' : '';
     <a href="<?= BASE_URL ?>/revisoes.php" class="nav-link <?= ($ativo('/revisoes') || $ativo('/revisao.php') || $ativo('/revisao_nova')) ? 'active' : '' ?>">
       <i class="bi bi-folder2-open"></i> Revisões
     </a>
-    <span class="nav-link disabled" title="Em construção">
-      <i class="bi bi-bell"></i> Cobranças <span class="badge-breve">em breve</span>
-    </span>
+
+    <div class="nav-section">Cobranças</div>
+    <a href="<?= BASE_URL ?>/cobranca_nova.php" class="nav-link <?= $ativo('/cobranca_nova') ?>">
+      <i class="bi bi-send"></i> Nova cobrança
+    </a>
+    <a href="<?= BASE_URL ?>/cobrancas.php" class="nav-link <?= ($ativo('/cobrancas.php') || $ativo('/cobranca.php')) ? 'active' : '' ?>">
+      <i class="bi bi-clock-history"></i> Histórico
+    </a>
+    <a href="<?= BASE_URL ?>/cobranca_modelos.php" class="nav-link <?= ($ativo('/cobranca_modelo')) ? 'active' : '' ?>">
+      <i class="bi bi-envelope-paper"></i> Modelos
+    </a>
 
     <?php if (is_admin()): ?>
     <div class="nav-section">Administração</div>
+    <a href="<?= BASE_URL ?>/funcionarios.php" class="nav-link <?= $ativo('/funcionarios') ?>">
+      <i class="bi bi-diagram-3"></i> Base de funcionários
+    </a>
     <a href="<?= BASE_URL ?>/users/index.php" class="nav-link <?= $ativo('/users/') ?>">
       <i class="bi bi-people-fill"></i> Usuários
+    </a>
+    <a href="<?= BASE_URL ?>/configuracoes.php" class="nav-link <?= $ativo('/configuracoes') ?>">
+      <i class="bi bi-gear"></i> Configurações
     </a>
     <?php endif; ?>
 

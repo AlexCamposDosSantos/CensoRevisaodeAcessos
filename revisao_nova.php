@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $inicio)) $erros[] = 'Informe a data de início.';
 
     $arquivos = [];
-    foreach (PLANILHAS as $tipo => $def) {
+    foreach (planilhas_da_revisao() as $tipo => $def) {
         $up = $_FILES['arq_' . $tipo] ?? null;
         $veio = $up && $up['error'] !== UPLOAD_ERR_NO_FILE;
         if (!$veio) {
@@ -105,7 +105,7 @@ require_once __DIR__ . '/includes/header.php';
     <div class="card h-100">
       <div class="card-header"><span class="passo">2</span> Planilhas da revisão</div>
       <div class="card-body">
-        <?php foreach (PLANILHAS as $tipo => $def): ?>
+        <?php foreach (planilhas_da_revisao() as $tipo => $def): ?>
           <div class="arq-bloco">
             <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
               <div>

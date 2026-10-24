@@ -33,7 +33,7 @@ const PLANILHAS = [
             'id_unico' => [
                 'cabecalho' => 'id-unico', 'apelidos' => ['id unico', 'cpf', 'identificador', 'identificador unico'],
                 'obrigatoria' => false, 'exemplo' => '12345678901',
-                'descricao' => 'Identificador único da pessoa (CPF). Opcional: aparece na lista de pendentes e na exportação.',
+                'descricao' => 'CPF da pessoa. É por ele que o Censo acha o LÍDER na base de funcionários — sem CPF, a pessoa não entra nas cobranças.',
             ],
             'enviado' => [
                 'cabecalho' => 'Foi enviado para revisao?', 'apelidos' => ['foi enviado para revisao', 'enviado para revisao', 'enviado'],
@@ -50,11 +50,89 @@ const PLANILHAS = [
                 'obrigatoria' => true, 'exemplo' => 'Empregado', 'valores' => ['Empregado', 'Terceirizado', 'Polo', 'Professor'],
                 'descricao' => 'Vínculo da pessoa: Empregado, Terceirizado, Polo ou Professor. Define em que grupo do painel ela aparece ("0" ou vazio conta como Polo).',
             ],
+            'lider_nome' => [
+                'cabecalho' => 'Nome do lider', 'apelidos' => ['nome do lider', 'nome lider', 'lider'],
+                'obrigatoria' => false, 'exemplo' => 'JOÃO PEREIRA',
+                'descricao' => 'Opcional. Quem recebe a cobrança desta pessoa. Preenchido, vale ANTES da base de funcionários (útil quando o líder não está lá, como costuma acontecer com professores).',
+            ],
+            'lider_email' => [
+                'cabecalho' => 'E-mail do lider', 'apelidos' => ['e mail do lider', 'email do lider', 'email lider', 'e mail lider'],
+                'obrigatoria' => false, 'exemplo' => 'joao.pereira@animaeducacao.com.br',
+                'descricao' => 'Opcional. E-mail de quem recebe a cobrança desta pessoa. Preenchido, vale antes da base de funcionários.',
+            ],
+        ],
+    ],
+
+    // Não pertence a uma revisão: é a hierarquia (quem é líder de quem), usada
+    // nas cobranças. Os cabeçalhos do modelo são os da BaseFull do RH — o
+    // arquivo diário serve direto, sem ajuste.
+    'funcionarios' => [
+        'titulo'      => 'Base de funcionários (hierarquia)',
+        'descricao'   => 'Quem é o líder de cada pessoa e o e-mail dele. É de onde saem os destinatários das cobranças. A BaseFull do RH serve direto.',
+        'obrigatoria' => false,
+        'escopo'      => 'global',
+        'colunas'     => [
+            'cpf' => [
+                'cabecalho' => 'CPF_FUNCIONARIO', 'apelidos' => ['cpf funcionario', 'cpf'],
+                'obrigatoria' => true, 'exemplo' => '12345678901',
+                'descricao' => 'CPF do funcionário, só números. Liga o funcionário à pessoa da revisão (coluna id-unico da base da revisão).',
+            ],
+            'matricula' => [
+                'cabecalho' => 'NUM_MATRICULA', 'apelidos' => ['num matricula', 'matricula'],
+                'obrigatoria' => true, 'exemplo' => '100708344',
+                'descricao' => 'Matrícula do funcionário. É por ela que um funcionário é achado como líder de outro.',
+            ],
+            'nome' => [
+                'cabecalho' => 'NOM_FUNCIONARIO', 'apelidos' => ['nom funcionario', 'nome funcionario', 'nome'],
+                'obrigatoria' => true, 'exemplo' => 'MARIA DA SILVA',
+                'descricao' => 'Nome completo do funcionário.',
+            ],
+            'email' => [
+                'cabecalho' => 'EML_FUNCIONARIO_EMPRESA', 'apelidos' => ['eml funcionario empresa', 'email empresa', 'email corporativo'],
+                'obrigatoria' => false, 'exemplo' => 'maria.silva@animaeducacao.com.br',
+                'descricao' => 'E-mail corporativo. É o usado quando a pessoa é líder e recebe a cobrança.',
+            ],
+            'email_alt' => [
+                'cabecalho' => 'EML_FUNCIONARIO', 'apelidos' => ['eml funcionario', 'email'],
+                'obrigatoria' => false, 'exemplo' => 'maria.silva@animaeducacao.com.br',
+                'descricao' => 'Outro e-mail. Só é usado se o corporativo estiver vazio e este NÃO for de provedor pessoal (gmail, hotmail…).',
+            ],
+            'login_ad' => [
+                'cabecalho' => 'SGL_AD_FUNCIONARIO', 'apelidos' => ['sgl ad funcionario', 'login', 'login ad'],
+                'obrigatoria' => false, 'exemplo' => 'maria.silva',
+                'descricao' => 'Login de rede (opcional).',
+            ],
+            'matricula_lider' => [
+                'cabecalho' => 'NUM_MATRICULA_LIDER', 'apelidos' => ['num matricula lider', 'matricula lider', 'matricula do lider'],
+                'obrigatoria' => true, 'exemplo' => '001000875',
+                'descricao' => 'Matrícula do líder imediato. O e-mail do líder vem da linha em que ele aparece como funcionário.',
+            ],
+            'nome_lider' => [
+                'cabecalho' => 'NOM_LIDER', 'apelidos' => ['nom lider', 'nome lider', 'nome do lider'],
+                'obrigatoria' => false, 'exemplo' => 'JOÃO PEREIRA',
+                'descricao' => 'Nome do líder imediato.',
+            ],
+            'ativo' => [
+                'cabecalho' => 'IND_ATIVO', 'apelidos' => ['ind ativo', 'ativo'],
+                'obrigatoria' => false, 'exemplo' => 'S', 'valores' => ['S', 'N'],
+                'descricao' => 'S se o vínculo está ativo. Quando o mesmo CPF tem várias linhas, vale a ativa. Em branco conta como ativo.',
+            ],
+            'admissao' => [
+                'cabecalho' => 'DAT_ADMISSAO', 'apelidos' => ['dat admissao', 'admissao', 'data de admissao'],
+                'obrigatoria' => false, 'exemplo' => '05/10/2026',
+                'descricao' => 'Data de admissão (desempate entre linhas ativas do mesmo CPF: vale a mais recente).',
+            ],
         ],
     ],
 ];
 
 const UPLOAD_MAX_MB = 50;
+
+/** Planilhas que uma revisão recebe (as de escopo "global" vivem fora dela). */
+function planilhas_da_revisao(): array
+{
+    return array_filter(PLANILHAS, fn($p) => ($p['escopo'] ?? 'revisao') === 'revisao');
+}
 
 function normalizar_cabecalho(string $s): string
 {
@@ -120,6 +198,31 @@ function xlsx_linhas(string $caminho): array
     return $linhas;
 }
 
+/**
+ * Percorre um CSV grande linha a linha (sem carregar o arquivo na memória),
+ * chamando $fn com cada linha (cabeçalho normalizado => valor).
+ */
+function csv_percorrer(string $caminho, callable $fn): void
+{
+    $h = fopen($caminho, 'r');
+    if (!$h) throw new RuntimeException('Não consegui ler o CSV.');
+    $primeira = (string) fgets($h);
+    $primeira = preg_replace('/^\xEF\xBB\xBF/', '', $primeira);
+    $latin = !mb_check_encoding($primeira, 'UTF-8');
+    $sep = substr_count($primeira, ';') >= substr_count($primeira, ',') ? ';' : ',';
+    $conv = fn($s) => $latin ? mb_convert_encoding($s, 'UTF-8', 'Windows-1252') : $s;
+    $cab = array_map(fn($c) => normalizar_cabecalho($conv($c)), str_getcsv(trim($primeira), $sep, '"', ''));
+    $n = 1;
+    while (($v = fgetcsv($h, 0, $sep, '"', '')) !== false) {
+        $n++;
+        if ($v === [null]) continue;
+        $l = ['_linha' => $n];
+        foreach ($cab as $i => $nome) $l[$nome] = $conv(trim((string) ($v[$i] ?? '')));
+        $fn($l);
+    }
+    fclose($h);
+}
+
 function csv_linhas(string $caminho): array
 {
     $txt = (string) file_get_contents($caminho);
@@ -182,6 +285,8 @@ function planilha_validar(string $tipo, string $caminho, string $nomeOriginal): 
             if (!$m['enviado'] && trim($m['justificativa'] ?? '') === '') $avisos[] = "{$ref}: marcada como NÃO enviada, sem justificativa.";
             $m['vinculo'] = normalizar_vinculo($m['vinculo']);
             if (!array_key_exists($m['vinculo'], VINCULOS)) $avisos[] = "{$ref}: vínculo \"{$m['vinculo']}\" fora da lista — vai aparecer à parte no painel.";
+            $le = trim($m['lider_email'] ?? '');
+            if ($le !== '' && !filter_var($le, FILTER_VALIDATE_EMAIL)) { $avisos[] = "{$ref}: e-mail do líder \"{$le}\" inválido — vai valer a base de funcionários."; $m['lider_email'] = ''; }
             if (count($erros) >= 30) { $erros[] = '…e há mais erros; corrija estes e envie de novo.'; break; }
         }
         unset($m);

@@ -4,7 +4,7 @@
  * no Horacius (revisão mais recente, ou ?r=id). É daqui que saem as cobranças.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/cobranca.php';
 require_login();
 
 $rev = revisao_escolhida();
@@ -18,14 +18,19 @@ $f = [
     'status'  => 'pendente',
 ];
 $lista = base_pessoas((int) $rev['id'], $f);
+$cobradas = pessoas_cobradas((int) $rev['id']);
 
 if (isset($_GET['csv'])) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="pendentes_revisao_' . (int) $rev['id'] . '_' . date('Ymd_Hi') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['Código', 'Nome', 'Identificador', 'Vínculo'], ';');
-    foreach ($lista as $p) fputcsv($out, [$p['codigo'], $p['nome'], $p['id_unico'], $p['vinculo']], ';');
+    fputcsv($out, ['Código', 'Nome', 'Identificador', 'Vínculo', 'Líder', 'E-mail do líder', 'Sem líder porque', 'Cobranças', 'Última cobrança'], ';');
+    foreach ($lista as $p) {
+        $L = lider_da_pessoa($p); $cb = $cobradas[(int) $p['codigo']] ?? null;
+        fputcsv($out, [$p['codigo'], $p['nome'], $p['id_unico'], $p['vinculo'], $L['nome'], $L['email'], $L['ok'] ? '' : $L['motivo'],
+                        $cb['vezes'] ?? 0, $cb['ultima'] ?? ''], ';');
+    }
     exit;
 }
 
@@ -66,19 +71,22 @@ require_once __DIR__ . '/includes/header.php';
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
   <table class="table table-hover align-middle mb-0">
     <thead class="table-light"><tr>
-      <th class="ps-4">Código</th><th>Nome</th><th>Identificador</th><th>Vínculo</th>
+      <th class="ps-4">Código</th><th>Nome</th><th>Vínculo</th><th>Líder</th><th>Cobranças</th>
     </tr></thead>
     <tbody>
       <?php foreach (array_slice($lista, 0, 500) as $p): ?>
         <tr>
           <td class="ps-4 font-monospace small"><?= (int) $p['codigo'] ?></td>
           <td class="fw-semibold"><?= e($p['nome']) ?></td>
-          <td class="small"><?= e($p['id_unico']) ?></td>
           <td><span class="badge badge-user"><?= e($p['vinculo']) ?></span></td>
+          <?php $L = lider_da_pessoa($p); $cb = $cobradas[(int) $p['codigo']] ?? null; ?>
+          <td class="small"><?php if ($L['ok']): ?><?= e($L['nome']) ?><div class="text-muted"><?= e($L['email']) ?></div>
+            <?php else: ?><span class="text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i><?= e($L['motivo']) ?></span><?php endif; ?></td>
+          <td class="small"><?= $cb ? $cb['vezes'] . '× · última ' . date('d/m H:i', strtotime($cb['ultima'])) : '<span class="text-muted">nunca</span>' ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$lista): ?>
-        <tr><td colspan="4" class="text-center text-muted py-5">Ninguém pendente com esses filtros.</td></tr>
+        <tr><td colspan="5" class="text-center text-muted py-5">Ninguém pendente com esses filtros.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>
