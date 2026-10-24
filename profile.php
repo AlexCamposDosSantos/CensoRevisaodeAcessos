@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Meu Perfil';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="row g-4">
@@ -115,4 +115,4 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

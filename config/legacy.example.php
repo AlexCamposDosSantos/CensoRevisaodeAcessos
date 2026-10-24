@@ -1,17 +1,33 @@
 <?php
 /**
- * Configuração local do Censo — copie para config.local.php e preencha.
+ * Formato legado: prefira copiar .env.example para .env na raiz.
+ * Para compatibilidade, este exemplo pode ser copiado para config.local.php na raiz.
  * O config.local.php NÃO vai para o git (ver .gitignore): é onde moram as senhas.
  * O Censo não lê configuração de nenhum outro sistema.
  */
 
 // ─── Banco do Horacius (MySQL, só leitura) — andamento da revisão ───────────
-define('CENSO_DB_HOST',   '10.0.0.0');
-define('CENSO_DB_PORT',   '3306');
-define('CENSO_DB_NAME',   'horacius');
-define('CENSO_DB_USER',   'usuario_somente_leitura');
-define('CENSO_DB_PASS',   'senha');
-define('CENSO_DB_ROTULO', 'produção');      // aparece na tela: "andamento lido no Horacius (produção)"
+// Um ou os dois ambientes. O switch do painel (administrador) escolhe qual está
+// em uso; o primeiro da lista é o padrão. No servidor que só alcança produção,
+// deixe só 'producao' (ou ponha produção primeiro).
+const CENSO_BANCOS = [
+    'producao' => [
+        'rotulo' => 'Produção',
+        'host'   => '10.0.0.1',
+        'port'   => '3306',
+        'name'   => 'horacius',
+        'user'   => 'usuario_somente_leitura',
+        'pass'   => 'senha',
+    ],
+    'homologacao' => [
+        'rotulo' => 'Homologação',
+        'host'   => '10.0.0.2',
+        'port'   => '3306',
+        'name'   => 'horacius',
+        'user'   => 'usuario_somente_leitura',
+        'pass'   => 'senha',
+    ],
+];
 
 // ─── Microsoft Graph — envio das cobranças por e-mail ────────────────────────
 // Aplicação do Entra ID com a permissão de APLICAÇÃO Mail.Send (consentida).

@@ -1,11 +1,11 @@
 <?php
 /**
  * Configurações (só administrador): mostra se o Censo tem o que precisa para
- * rodar sozinho e testa cada parte. As senhas ficam só no config.local.php —
+ * rodar sozinho e testa cada parte. As senhas ficam só no .env —
  * nunca na tela.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_admin();
 
 $teste = null;
@@ -13,12 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_ok()) {
         flash('erro', 'Sessão expirada. Tente novamente.');
     } elseif (($_POST['acao'] ?? '') === 'banco') {
+        $k = (string) ($_POST['banco'] ?? banco_atual());
         try {
             $t = microtime(true);
-            $n = (int) horacius_db()->query('SELECT COUNT(*) FROM ac_revisao WHERE datahoraregistro >= DATE_SUB(NOW(), INTERVAL 30 DAY)')->fetchColumn();
-            flash('ok', sprintf('Horacius (%s) respondeu em %.1fs — %s revisões registradas nos últimos 30 dias.', horacius_rotulo(), microtime(true) - $t, number_format($n, 0, ',', '.')));
+            $n = (int) horacius_db($k)->query('SELECT COUNT(*) FROM ac_revisao WHERE datahoraregistro >= DATE_SUB(NOW(), INTERVAL 30 DAY)')->fetchColumn();
+            flash('ok', sprintf('Horacius (%s) respondeu em %.1fs — %s revisões registradas nos últimos 30 dias.', horacius_rotulo($k), microtime(true) - $t, number_format($n, 0, ',', '.')));
         } catch (Throwable $e) {
-            flash('erro', 'O Horacius não respondeu: ' . $e->getMessage());
+            flash('erro', 'O Horacius (' . horacius_rotulo($k) . ') não respondeu: ' . $e->getMessage());
         }
     } elseif (($_POST['acao'] ?? '') === 'email') {
         $rem = (string) ($_POST['remetente'] ?? '');
@@ -38,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pend = config_pendencias();
 $pageTitle = 'Configurações';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="card mb-4">
@@ -49,9 +50,9 @@ require_once __DIR__ . '/includes/header.php';
       <?php if ($pend): ?>
         <ul class="mb-0 small"><?php foreach ($pend as $p): ?><li><?= e($p) ?></li><?php endforeach; ?></ul>
       <?php else: ?>
-        <div class="small text-muted">Banco do Horacius e envio de e-mail configurados no <code>config.local.php</code> do Censo — ele não depende da configuração de nenhum outro sistema.</div>
+        <div class="small text-muted">Banco do Horacius e envio de e-mail configurados no <code>.env</code> do Censo — ele não depende da configuração de nenhum outro sistema.</div>
       <?php endif; ?>
-      <div class="small text-muted mt-2">As senhas ficam só no arquivo <code>config.local.php</code> (fora do git). Modelo: <code>config.local.example.php</code>.</div>
+      <div class="small text-muted mt-2">As senhas ficam só no arquivo <code>.env</code> (fora do git). Modelo: <code>.env.example</code>.</div>
     </div>
   </div>
 </div>
@@ -59,14 +60,18 @@ require_once __DIR__ . '/includes/header.php';
 <div class="row g-4">
   <div class="col-lg-6">
     <div class="card h-100"><div class="card-header">Banco do Horacius</div><div class="card-body">
-      <dl class="row small mb-3">
-        <dt class="col-4">Servidor</dt><dd class="col-8"><?= e(censo_cfg('CENSO_DB_HOST') ?: '—') ?>:<?= e(censo_cfg('CENSO_DB_PORT', '3306')) ?></dd>
-        <dt class="col-4">Banco</dt><dd class="col-8"><?= e(censo_cfg('CENSO_DB_NAME', 'horacius')) ?></dd>
-        <dt class="col-4">Usuário</dt><dd class="col-8"><?= e(censo_cfg('CENSO_DB_USER') ?: '—') ?></dd>
-        <dt class="col-4">Rótulo</dt><dd class="col-8"><?= e(horacius_rotulo()) ?></dd>
-      </dl>
-      <form method="POST"><?= csrf_field() ?><input type="hidden" name="acao" value="banco">
-        <button class="btn btn-outline-primary"><i class="bi bi-plug me-1"></i> Testar conexão</button></form>
+      <?php foreach (bancos() as $k => $b): $emUso = $k === banco_atual(); ?>
+        <div class="banco-item <?= $emUso ? 'em-uso' : '' ?>">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong><?= e($b['rotulo'] ?? $k) ?></strong>
+            <?= $emUso ? '<span class="badge badge-ativo">em uso</span>' : '<span class="small text-muted">troca no switch do Painel</span>' ?>
+          </div>
+          <div class="small text-muted mb-2"><?= e(($b['host'] ?? '—') . ':' . ($b['port'] ?? '3306')) ?> · banco <?= e($b['name'] ?? 'horacius') ?> · usuário <?= e($b['user'] ?? '—') ?></div>
+          <form method="POST"><?= csrf_field() ?><input type="hidden" name="acao" value="banco"><input type="hidden" name="banco" value="<?= e($k) ?>">
+            <button class="btn btn-sm btn-outline-primary"><i class="bi bi-plug me-1"></i> Testar conexão</button></form>
+        </div>
+      <?php endforeach; ?>
+      <?php if (!bancos()): ?><div class="text-muted small">Nenhum banco configurado. Preencha CENSO_DB_AMBIENTES e os campos CENSO_DB_* no .env.</div><?php endif; ?>
     </div></div>
   </div>
   <div class="col-lg-6">
@@ -87,4 +92,4 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Revisões de acesso: cada revisão nasce de um UPLOAD (a base de pessoas,
- * ver includes/planilha.php), guarda o arquivo original e acompanha o
+ * ver includes/services/planilha.php), guarda o arquivo original e acompanha o
  * andamento direto no banco do Horacius. Nada vem do SharePoint.
  *
  * Mesma regra do painel do Power BI ("Dashboard Governança de ID & Acessos"),
@@ -11,7 +11,7 @@
  *     (ac_revisao) desde o início da revisão; PENDENTE = ainda nenhuma;
  *   - vínculo "0" (ou vazio) conta como Polo, como faz o BI.
  */
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/fontes.php';
 require_once __DIR__ . '/planilha.php';
 
@@ -97,6 +97,10 @@ function revisao_estrutura(): void
     // Bases criadas antes das colunas de líder ganham as colunas (vazias)
     $cols = array_column($pdo->query('PRAGMA table_info(base_pessoas)')->fetchAll(), 'name');
     foreach (['lider_nome', 'lider_email'] as $c) if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE base_pessoas ADD COLUMN {$c} TEXT");
+    // De qual banco (produção/homologação) veio o último andamento
+    if (!in_array('andamento_banco', array_column($pdo->query('PRAGMA table_info(revisoes)')->fetchAll(), 'name'), true)) {
+        $pdo->exec('ALTER TABLE revisoes ADD COLUMN andamento_banco TEXT');
+    }
 }
 
 // ─── Revisões ────────────────────────────────────────────────────────────────
@@ -245,7 +249,7 @@ function andamento_atualizar(array $rev): int
             $ins->execute([$rev['id'], (int) $r['codigo'], (int) $r['linhas'], (int) $r['mantidos'], (int) $r['revogados'], $r['ultima']]);
             $n++;
         }
-        $pdo->prepare("UPDATE revisoes SET andamento_em = datetime('now','localtime'), andamento_erro = NULL WHERE id = ?")->execute([$rev['id']]);
+        $pdo->prepare("UPDATE revisoes SET andamento_em = datetime('now','localtime'), andamento_erro = NULL, andamento_banco = ? WHERE id = ?")->execute([banco_atual(), $rev['id']]);
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -257,7 +261,8 @@ function andamento_atualizar(array $rev): int
 /** Relê o andamento se a última leitura venceu. Falha não derruba a tela: vira aviso. */
 function andamento_garantir(array &$rev, bool $forcar = false): ?string
 {
-    if (!$forcar && $rev['andamento_em'] && (time() - strtotime($rev['andamento_em'])) < ANDAMENTO_VALIDADE_MIN * 60) return null;
+    $mesmoBanco = ($rev['andamento_banco'] ?? '') === banco_atual();
+    if (!$forcar && $mesmoBanco && $rev['andamento_em'] && (time() - strtotime($rev['andamento_em'])) < ANDAMENTO_VALIDADE_MIN * 60) return null;
     try {
         andamento_atualizar($rev);
         $erro = null;

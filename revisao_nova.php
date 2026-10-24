@@ -1,11 +1,11 @@
 <?php
 /**
  * Iniciar nova revisão (só administrador): nome, data de início e o upload das
- * planilhas do catálogo (includes/planilha.php). Cada arquivo é VALIDADO antes
+ * planilhas do catálogo (includes/services/planilha.php). Cada arquivo é VALIDADO antes
  * de qualquer gravação — com erro, nada é criado e a tela diz a linha.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
 require_admin();
 
 $nome   = 'Revisão de Acessos ' . date('Y');
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Nova Revisão';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="mb-3">
@@ -145,4 +145,4 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </form>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

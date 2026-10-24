@@ -12,7 +12,7 @@
  * E-mail: o corporativo (EML_FUNCIONARIO_EMPRESA); o outro só entra se não for
  * de provedor pessoal — cobrança não vai para gmail sem alguém decidir.
  */
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/planilha.php';
 
 const DOMINIOS_PESSOAIS = ['gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'yahoo.com', 'yahoo.com.br',
@@ -188,6 +188,7 @@ function data_iso(string $s): string
 function funcionario_por(string $campo, string $valor): ?array
 {
     if ($valor === '') return null;
+    funcionarios_estrutura();
     $col = $campo === 'cpf' ? 'cpf' : 'matricula';
     // Entre as linhas ativas, a que TEM líder vence (o mesmo CPF pode ter dois vínculos ativos)
     $st = db()->prepare("SELECT * FROM funcionarios WHERE {$col} = ?
@@ -200,16 +201,17 @@ function funcionario_por(string $campo, string $valor): ?array
  * Líder de uma pessoa, a partir do CPF.
  * @return array{ok:bool, motivo:?string, nome:string, email:string, cpf:string, matricula:string}
  */
-function lider_de_cpf(string $cpf): array
+function lider_de_cpf(string $cpf, ?callable $buscar = null): array
 {
     $vazio = ['ok' => false, 'motivo' => null, 'nome' => '', 'email' => '', 'cpf' => '', 'matricula' => ''];
     $cpf = so_digitos($cpf, 11);
     if ($cpf === '' || $cpf === '00000000000') return ['motivo' => 'Sem CPF na base da revisão'] + $vazio;
-    $f = funcionario_por('cpf', $cpf);
+    $buscar ??= 'funcionario_por';
+    $f = $buscar('cpf', $cpf);
     if (!$f) return ['motivo' => 'CPF não está na base de funcionários'] + $vazio;
     if ($f['matricula_lider'] === '') return ['motivo' => 'Sem líder na base de funcionários', 'nome' => $f['nome_lider']] + $vazio;
 
-    $l = funcionario_por('matricula', $f['matricula_lider']);
+    $l = $buscar('matricula', $f['matricula_lider']);
     $nome = ($l['nome'] ?? '') ?: $f['nome_lider'];
     if (!$l) return ['motivo' => 'Líder não está na base de funcionários', 'nome' => $nome, 'matricula' => $f['matricula_lider']] + $vazio;
     $email = email_institucional($l);
@@ -218,18 +220,20 @@ function lider_de_cpf(string $cpf): array
 }
 
 /**
- * Líder de uma pessoa da revisão (linha de base_pessoas): primeiro o que veio
- * na própria base da revisão (colunas opcionais de líder), depois a base de
- * funcionários pelo CPF. Devolve o mesmo formato de lider_de_cpf() + 'fonte'.
+ * Prioriza o líder atual encontrado pelo CPF na BaseFull importada. Se não houver
+ * contato válido nela, usa o líder informado na planilha da revisão como alternativa.
+ * Os campos originais da revisão são preservados. Mesmo formato + 'fonte'.
  */
-function lider_da_pessoa(array $p): array
+function lider_da_pessoa(array $p, ?callable $buscar = null): array
 {
+    $basefull = lider_de_cpf((string) ($p['id_unico'] ?? ''), $buscar) + ['fonte' => 'base de funcionários'];
+    if ($basefull['ok']) return $basefull;
     $email = strtolower(trim($p['lider_email'] ?? ''));
     if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         return ['ok' => true, 'motivo' => null, 'nome' => trim($p['lider_nome'] ?? '') ?: $email, 'email' => $email,
                 'cpf' => '', 'matricula' => '', 'fonte' => 'base da revisão'];
     }
-    return lider_de_cpf((string) ($p['id_unico'] ?? '')) + ['fonte' => 'base de funcionários'];
+    return $basefull;
 }
 
 /**
@@ -246,4 +250,37 @@ function lider_do_lider(array $lider): array
     $st->execute([$lider['email'], $lider['email']]);
     $cpf = (string) $st->fetchColumn();
     return $cpf !== '' ? lider_de_cpf($cpf) : $vazio;
+}
+
+/** Resolve hierarquia em lotes, com a mesma preferência de funcionario_por(). */
+function lideres_das_pessoas(array $pessoas): array
+{
+    if (!$pessoas) return [];
+    funcionarios_estrutura();
+    $carregar = function (string $campo, array $valores): array {
+        $mapa = [];
+        $valores = array_values(array_unique(array_filter($valores, fn($v) => $v !== '')));
+        foreach (array_chunk($valores, 400) as $lote) {
+            $st = db()->prepare('SELECT * FROM funcionarios WHERE ' . $campo . ' IN ('
+                . implode(',', array_fill(0, count($lote), '?')) . ")
+                ORDER BY ativo DESC, (matricula_lider <> '') DESC, admissao DESC, id DESC");
+            $st->execute($lote);
+            while ($linha = $st->fetch()) {
+                $chave = (string) $linha[$campo];
+                if (!isset($mapa[$chave])) $mapa[$chave] = $linha;
+            }
+        }
+        return $mapa;
+    };
+    $cpfs = [];
+    foreach ($pessoas as $p) {
+        $cpf = so_digitos((string) ($p['id_unico'] ?? ''), 11);
+        if ($cpf !== '' && $cpf !== '00000000000') $cpfs[] = $cpf;
+    }
+    $funcionarios = $carregar('cpf', $cpfs);
+    $chefias = $carregar('matricula', array_column($funcionarios, 'matricula_lider'));
+    $buscar = fn($campo, $valor) => $campo === 'cpf' ? ($funcionarios[$valor] ?? null) : ($chefias[$valor] ?? null);
+    $out = [];
+    foreach ($pessoas as $p) $out[(int) $p['codigo']] = lider_da_pessoa($p, $buscar);
+    return $out;
 }

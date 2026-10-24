@@ -2,16 +2,17 @@
 /**
  * E-mail do Censo: montagem (topo + corpo + rodapé, no mesmo desenho do Mala
  * Direta) e envio pela Microsoft Graph, com as credenciais do PRÓPRIO Censo
- * (config.local.php: CENSO_GRAPH_* e CENSO_REMETENTES).
+ * (.env: CENSO_GRAPH_* e CENSO_REMETENTES).
  *
  * Topo e rodapé vão EMBUTIDOS na mensagem (anexo inline, cid:) — não dependem
  * de o destinatário alcançar o servidor do Censo para ver as imagens.
  */
 require_once __DIR__ . '/fontes.php';
+require_once __DIR__ . '/../db.php';
 
 function pasta_imagens_email(): string
 {
-    return dirname(__DIR__) . '/assets/email';
+    return dirname(__DIR__, 2) . '/assets/email';
 }
 
 /** Imagens disponíveis: ['topo' => [...arquivos], 'rodape' => [...]] */
@@ -83,13 +84,30 @@ function graph_token(string $remetente): string
     return $cache[$remetente] = $resp['access_token'];
 }
 
+/** Normaliza uma lista de e-mails ("um por linha", vírgula ou ponto e vírgula). Devolve [válidos, inválidos]. */
+function lista_emails(string|array $bruto): array
+{
+    $itens = is_array($bruto) ? $bruto : (preg_split('/[\r\n;,]+/', $bruto) ?: []);
+    $ok = []; $ruins = [];
+    foreach ($itens as $e) {
+        $e = strtolower(trim((string) $e));
+        if ($e === '') continue;
+        filter_var($e, FILTER_VALIDATE_EMAIL) ? $ok[$e] = true : $ruins[] = $e;
+    }
+    return [array_keys($ok), $ruins];
+}
+
 /**
- * Envia um e-mail. $cc: lista de endereços. Devolve null quando foi aceito,
- * ou a mensagem de erro.
+ * Envia um e-mail. $cc / $cco: listas de endereços. Devolve null quando foi
+ * aceito, ou a mensagem de erro. $naoEnviar: e-mails que este envio NUNCA alcança
+ * (a lista "não enviar" da cobrança) — em Cc/Cco são retirados; como
+ * destinatário, o envio é recusado. É a barreira final, depois da prévia.
  */
 function email_enviar(string $remetente, string $para, string $paraNome, array $cc, string $assunto,
-                      string $corpo, string $topo, string $rodape): ?string
+                      string $corpo, string $topo, string $rodape, array $cco = [], array $naoEnviar = []): ?string
 {
+    $bloq = array_flip(array_map(fn($e) => strtolower(trim($e)), $naoEnviar));
+    if (isset($bloq[strtolower(trim($para))])) return 'Destinatário está na lista de "não enviar" desta cobrança — nada foi enviado.';
     try {
         $token = graph_token($remetente);
     } catch (Throwable $e) {
@@ -112,8 +130,10 @@ function email_enviar(string $remetente, string $para, string $paraNome, array $
         ];
     }
 
-    $cc = array_values(array_unique(array_filter(array_map(fn($e) => strtolower(trim($e)), $cc),
-        fn($e) => $e !== '' && $e !== strtolower($para) && filter_var($e, FILTER_VALIDATE_EMAIL))));
+    $limpa = fn(array $lista, array $tirar) => array_values(array_unique(array_filter(array_map(fn($e) => strtolower(trim($e)), $lista),
+        fn($e) => $e !== '' && !in_array($e, $tirar, true) && filter_var($e, FILTER_VALIDATE_EMAIL) && !isset($bloq[$e]))));
+    $cc  = $limpa($cc, [strtolower($para)]);
+    $cco = $limpa($cco, array_merge([strtolower($para)], $cc));   // quem já está em Para/Cc não repete em Cco
 
     $payload = [
         'message' => [
@@ -121,6 +141,7 @@ function email_enviar(string $remetente, string $para, string $paraNome, array $
             'body'         => ['contentType' => 'HTML', 'content' => email_html($corpo, $topo, $rodape, true)],
             'toRecipients' => [['emailAddress' => ['address' => $para, 'name' => $paraNome]]],
             'ccRecipients' => array_map(fn($e) => ['emailAddress' => ['address' => $e]], $cc),
+            'bccRecipients' => array_map(fn($e) => ['emailAddress' => ['address' => $e]], $cco),
             'from'         => ['emailAddress' => ['address' => $remetente, 'name' => $conta['nome'] ?? $remetente]],
             'attachments'  => $anexos,
         ],

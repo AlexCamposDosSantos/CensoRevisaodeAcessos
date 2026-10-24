@@ -5,7 +5,7 @@
  * falharam, e as pessoas que ficaram sem destinatário.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 
 $c = cobranca((int) ($_GET['id'] ?? 0));
@@ -29,7 +29,7 @@ $n = fn($x) => number_format((int) $x, 0, ',', '.');
 $rotSt = ['pendente' => ['Na fila', 'badge-user'], 'enviado' => ['Enviado', 'badge-ativo'], 'erro' => ['Erro', 'badge-erro']];
 
 $pageTitle = 'Cobrança #' . $id;
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="mb-3 d-flex gap-2">
@@ -46,6 +46,10 @@ require_once __DIR__ . '/includes/header.php';
         · de <?= e($c['remetente']) ?> · por <?= e($c['criado_por_nome'] ?? '—') ?> em <?= date('d/m/Y H:i', strtotime($c['criado_em'])) ?>
         <?= $c['prazo'] !== '' ? ' · prazo: ' . e($c['prazo']) : '' ?>
       </div>
+      <?php $ne = lista_emails((string) ($c['nao_enviar'] ?? ''))[0]; if ($ne): ?>
+        <details class="small mt-1"><summary class="text-muted"><i class="bi bi-slash-circle me-1"></i>Não enviar para: <?= count($ne) ?> e-mail(s) nesta cobrança</summary>
+          <div class="mt-1 font-monospace"><?= e(implode(', ', $ne)) ?></div></details>
+      <?php endif; ?>
     </div>
     <?php if ((int) $c['erros'] > 0 && $pend === 0): ?>
       <form method="POST"><?= csrf_field() ?><input type="hidden" name="acao" value="reenviar">
@@ -63,12 +67,13 @@ require_once __DIR__ . '/includes/header.php';
 
 <div class="card mb-4"><div class="card-body p-0"><div class="table-responsive">
   <table class="table table-hover align-middle mb-0 small">
-    <thead class="table-light"><tr><th class="ps-4">Para</th><th>Cópia</th><th class="text-end">Pessoas</th><th>Situação</th><th>Enviado em</th><th></th></tr></thead>
+    <thead class="table-light"><tr><th class="ps-4">Para</th><th>Cc</th><th>Cco</th><th class="text-end">Pessoas</th><th>Situação</th><th>Enviado em</th><th></th></tr></thead>
     <tbody>
       <?php foreach ($envios as $e): [$rot, $cls] = $rotSt[$e['status']]; ?>
         <tr>
           <td class="ps-4"><div class="fw-semibold"><?= e($e['para_nome']) ?></div><div class="text-muted"><?= e($e['para_email']) ?></div></td>
           <td class="text-muted"><?= e($e['cc']) ?: '—' ?></td>
+          <td class="text-muted"><?= e($e['cco'] ?? '') ?: '—' ?></td>
           <td class="text-end fw-semibold"><?= $n($e['qtd']) ?></td>
           <td><span class="badge <?= $cls ?>"><?= $rot ?></span><?php if ($e['erro']): ?><div class="text-danger mt-1"><?= e(mb_strimwidth($e['erro'], 0, 160, '…')) ?></div><?php endif; ?></td>
           <td><?= $e['enviado_em'] ? date('d/m/Y H:i', strtotime($e['enviado_em'])) : '—' ?></td>
@@ -117,4 +122,4 @@ document.querySelectorAll(".btn-ver").forEach(function (b) {
     .catch(function () { document.getElementById("progTexto").textContent = "Falha de rede — recarregue a página para continuar de onde parou."; });
 })();' : '') . '
 </script>';
-require_once __DIR__ . '/includes/footer.php';
+require_once __DIR__ . '/includes/views/footer.php';

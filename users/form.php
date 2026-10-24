@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = $id ? 'Editar Usuário' : 'Novo Usuário';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/views/header.php';
 ?>
 
 <div class="mb-3">
@@ -139,4 +139,4 @@ require_once __DIR__ . '/../includes/header.php';
   </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/views/footer.php'; ?>

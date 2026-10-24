@@ -2,8 +2,12 @@
 /dados/*
 !/dados/.htaccess
 
-# Credenciais locais (o padrão é ler o .env do Prumo)
+# Configuração exclusiva do Censo e credenciais locais
+/.env
+/.env.*
+!/.env.example
 /config.local.php
+/config/*.local.php
 
 # Sistema / editor
 .DS_Store

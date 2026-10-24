@@ -1,13 +1,13 @@
 <?php
 /** Histórico de cobranças: o que foi enviado, quando, por quem, para quantos. */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 
 $lista = array_map('cobranca', cobrancas_lista());
 $n = fn($x) => number_format((int) $x, 0, ',', '.');
 $pageTitle = 'Histórico de Cobranças';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -40,4 +40,4 @@ require_once __DIR__ . '/includes/header.php';
   </table>
 </div></div></div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

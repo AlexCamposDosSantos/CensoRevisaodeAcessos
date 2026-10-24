@@ -5,7 +5,7 @@
  * e-mail montado e quem ficou sem destinatário. Nada sai antes de "Confirmar".
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 cobranca_estrutura();
 
@@ -22,11 +22,16 @@ $o = [
     'so_nao_cobrados' => !empty($_POST['so_nao_cobrados']),
     'alvo'            => ($_POST['alvo'] ?? 'lider') === 'superior' ? 'superior' : 'lider',
     'copiar_outro'    => !empty($_POST['copiar_outro']),
+    'tipo_copia_outro' => ($_POST['tipo_copia_outro'] ?? 'cc') === 'cco' ? 'cco' : 'cc',
+    'tipo_copia_fixa'  => ($_POST['tipo_copia_fixa'] ?? 'cc') === 'cco' ? 'cco' : 'cc',
     'modelo_id'       => (int) ($_POST['modelo_id'] ?? ($_GET['modelo'] ?? ($modelos[0]['id'] ?? 0))),
     'remetente'       => (string) ($_POST['remetente'] ?? (array_key_first($rems) ?? '')),
     'prazo'           => utf8(trim((string) ($_POST['prazo'] ?? ''))),
     'copia_fixa'      => trim((string) ($_POST['copia_fixa'] ?? 'seginfo@animaeducacao.com.br')),
 ];
+// "Não enviar" desta cobrança: um e-mail por linha
+$naoEnviarTexto = (string) ($_POST['nao_enviar'] ?? '');
+[$o['nao_enviar'], $naoEnviarRuins] = lista_emails($naoEnviarTexto);
 $acao  = $_POST['acao'] ?? '';
 $erros = [];
 $plano = null;
@@ -36,9 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!revisao($o['revisao_id']))       $erros[] = 'Escolha a revisão.';
     $modelo = modelo_cobranca($o['modelo_id']);
     if (!$modelo)                         $erros[] = 'Escolha o modelo do e-mail.';
-    if (!isset($rems[$o['remetente']]))   $erros[] = 'Escolha o remetente (CENSO_REMETENTES no config.local.php).';
+    if (!isset($rems[$o['remetente']]))   $erros[] = 'Escolha o remetente (CENSO_REMETENTES no .env).';
     [, $ruins] = enderecos_validos($o['copia_fixa']);
     if ($ruins)                           $erros[] = 'E-mail inválido em "cópia fixa": ' . implode(', ', $ruins);
+    if ($naoEnviarRuins)                  $erros[] = 'Linha que não é e-mail em "não enviar para": ' . implode(', ', $naoEnviarRuins);
 
     if (!$erros) {
         $rev = revisao($o['revisao_id']);
@@ -52,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 '[TESTE] ' . cobranca_aplicar($modelo['assunto'], $ctx, $g['pessoas'], $o['alvo'] === 'superior', false),
                 '<p style="background:#fff4e5;border:1px solid #f0c27b;padding:8px 12px;border-radius:6px;font-size:13px;color:#7a4b00;">'
                 . '<strong>Teste</strong> — este e-mail iria para <strong>' . e($g['nome']) . ' &lt;' . e($g['email']) . '&gt;</strong>'
-                . ($g['cc'] ? ', com cópia para ' . e(implode(', ', $g['cc'])) : '') . '.</p>'
+                . ($g['cc'] ? ', com cópia (Cc) para ' . e(implode(', ', $g['cc'])) : '')
+                . ($g['cco'] ? ' e cópia oculta (Cco) para ' . e(implode(', ', $g['cco'])) : '') . '.</p>'
                 . cobranca_aplicar($modelo['corpo'], $ctx, $g['pessoas'], $o['alvo'] === 'superior'),
                 $modelo['topo'], $modelo['rodape']);
             if ($erro) $erros[] = 'O teste não saiu: ' . $erro;
@@ -71,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $n = fn($x) => number_format((int) $x, 0, ',', '.');
 $pageTitle = 'Nova Cobrança';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <?php if (!$revisoes): ?>
@@ -131,6 +138,14 @@ require_once __DIR__ . '/includes/header.php';
           <input class="form-check-input" type="checkbox" id="copiar_outro" name="copiar_outro" value="1" <?= $o['copiar_outro'] ? 'checked' : '' ?>>
           <label class="form-check-label small" for="copiar_outro" id="lblCopiar"><?= $o['alvo'] === 'superior' ? 'Colocar o gestor (líder imediato) em cópia' : 'Colocar o líder do gestor em cópia' ?></label>
         </div>
+        <div class="tipo-copia" id="tipoCopiaOutro" <?= $o['copiar_outro'] ? '' : 'hidden' ?>>
+          <span class="small text-muted">Como copiar:</span>
+          <label><input type="radio" name="tipo_copia_outro" value="cc" <?= $o['tipo_copia_outro'] === 'cc' ? 'checked' : '' ?>> <strong>Cc</strong> <small>— o destinatário vê quem está em cópia</small></label>
+          <label><input type="radio" name="tipo_copia_outro" value="cco" <?= $o['tipo_copia_outro'] === 'cco' ? 'checked' : '' ?>> <strong>Cco</strong> <small>— cópia oculta, o destinatário não vê</small></label>
+        </div>
+        <label class="form-label fw-semibold small mt-3" for="nao_enviar"><i class="bi bi-slash-circle me-1"></i>Não enviar para <span class="fw-normal text-muted">(nesta cobrança)</span></label>
+        <textarea id="nao_enviar" name="nao_enviar" rows="4" class="form-control font-monospace small" placeholder="um e-mail por linha"><?= e($naoEnviarTexto) ?></textarea>
+        <div class="form-text">Quem estiver aqui não recebe esta cobrança em nenhum campo (Para, Cc ou Cco). Se for um líder, as pessoas da equipe dele aparecem como "sem destinatário".</div>
       </div></div>
     </div>
 
@@ -149,6 +164,10 @@ require_once __DIR__ . '/includes/header.php';
         <input id="prazo" name="prazo" class="form-control mb-3" value="<?= e($o['prazo']) ?>" placeholder="ex.: hoje, <?= date('d/m/Y') ?>">
         <label class="form-label fw-semibold small" for="copia_fixa">Cópia em todos os e-mails</label>
         <input id="copia_fixa" name="copia_fixa" class="form-control" value="<?= e($o['copia_fixa']) ?>" placeholder="separe por vírgula">
+        <div class="tipo-copia mt-2">
+          <label><input type="radio" name="tipo_copia_fixa" value="cc" <?= $o['tipo_copia_fixa'] === 'cc' ? 'checked' : '' ?>> <strong>Cc</strong></label>
+          <label><input type="radio" name="tipo_copia_fixa" value="cco" <?= $o['tipo_copia_fixa'] === 'cco' ? 'checked' : '' ?>> <strong>Cco</strong> <small>(oculta)</small></label>
+        </div>
       </div></div>
     </div>
   </div>
@@ -168,17 +187,24 @@ require_once __DIR__ . '/includes/header.php';
     <?php endforeach; ?>
   </div>
 
+  <?php if (!empty($plano['copias_bloqueadas'])): ?>
+    <div class="alert alert-info small"><i class="bi bi-slash-circle me-1"></i> <?= $n($plano['copias_bloqueadas']) ?> cópia(s) retirada(s) por estarem em "não enviar para".</div>
+  <?php endif; ?>
   <?php if ($plano['grupos']): ?>
   <div class="row g-4 mb-4">
     <div class="col-xl-6">
       <div class="card h-100"><div class="card-header d-flex justify-content-between"><span>Destinatários</span><span class="small fw-normal text-muted"><?= $o['alvo'] === 'superior' ? 'líderes dos gestores' : 'gestores' ?></span></div>
       <div class="card-body p-0"><div class="table-responsive" style="max-height:560px">
         <table class="table table-sm table-hover align-middle mb-0 small">
-          <thead class="table-light" style="position:sticky;top:0"><tr><th class="ps-3">Recebe</th><th>Cópia</th><th class="text-end pe-3">Pessoas</th></tr></thead>
+          <thead class="table-light" style="position:sticky;top:0"><tr><th class="ps-3">Recebe</th><th>Cópias</th><th class="text-end pe-3">Pessoas</th></tr></thead>
           <tbody>
             <?php foreach ($plano['grupos'] as $g): ?>
               <tr><td class="ps-3"><div class="fw-semibold"><?= e($g['nome']) ?></div><div class="text-muted"><?= e($g['email']) ?></div></td>
-                  <td class="text-muted"><?= e(implode(', ', $g['cc'])) ?: '—' ?></td>
+                  <td class="text-muted">
+                    <?php if ($g['cc']): ?><div><span class="tag-copia">Cc</span> <?= e(implode(', ', $g['cc'])) ?></div><?php endif; ?>
+                    <?php if ($g['cco']): ?><div><span class="tag-copia tag-cco">Cco</span> <?= e(implode(', ', $g['cco'])) ?></div><?php endif; ?>
+                    <?= (!$g['cc'] && !$g['cco']) ? '—' : '' ?>
+                  </td>
                   <td class="text-end pe-3 fw-semibold"><?= $n(count($g['pessoas'])) ?></td></tr>
             <?php endforeach; ?>
           </tbody>
@@ -229,15 +255,13 @@ require_once __DIR__ . '/includes/header.php';
 
 <?php
 $extraJs = '<script>
+var cbOutro = document.getElementById("copiar_outro");
+cbOutro.addEventListener("change", function () { document.getElementById("tipoCopiaOutro").hidden = !cbOutro.checked; });
 document.querySelectorAll("[name=alvo]").forEach(function (r) {
   r.addEventListener("change", function () {
     document.getElementById("lblCopiar").textContent = this.value === "superior"
       ? "Colocar o gestor (líder imediato) em cópia" : "Colocar o líder do gestor em cópia";
   });
 });
-// O botão de confirmação está dentro do formulário: o submit precisa levar acao=enviar
-document.querySelectorAll("[data-confirm][name=acao]").forEach(function (b) {
-  b.addEventListener("click", function () { var h = document.createElement("input"); h.type = "hidden"; h.name = "acao"; h.value = b.value; b.form.appendChild(h); }, true);
-});
 </script>';
-require_once __DIR__ . '/includes/footer.php';
+require_once __DIR__ . '/includes/views/footer.php';

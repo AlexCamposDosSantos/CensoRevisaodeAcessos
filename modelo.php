@@ -1,7 +1,7 @@
 <?php
 /** Download do modelo .xlsx de uma planilha do catálogo (?tipo=base). */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
 require_login();
 
 $tipo = (string) ($_GET['tipo'] ?? '');

@@ -5,7 +5,7 @@
  * nome/início e excluir.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
 require_login();
 
 $rev = revisao((int) ($_GET['id'] ?? 0));
@@ -69,7 +69,7 @@ $n  = fn($x) => number_format((int) $x, 0, ',', '.');
 $rotStatus = ['concluido' => ['Concluído', 'badge-ativo'], 'pendente' => ['Pendente', 'badge-pend'], 'fora' => ['Fora da revisão', 'badge-inativo']];
 
 $pageTitle = 'Dados da Revisão';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="mb-3 d-flex gap-2">
@@ -209,4 +209,4 @@ require_once __DIR__ . '/includes/header.php';
   </nav>
 <?php endif; ?>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

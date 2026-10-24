@@ -4,7 +4,7 @@
  * nunca por URL direta: a pasta dados/ é fechada pelo .htaccess.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
 require_login();
 
 $a = revisao_arquivo((int) ($_GET['id'] ?? 0));

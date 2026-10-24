@@ -5,7 +5,7 @@
  * o e-mail de verdade com dados de exemplo.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 
 $id = (int) ($_GET['id'] ?? 0);
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_admin()) {
 
 $pageTitle = $id ? 'Modelo de Cobrança' : 'Novo Modelo de Cobrança';
 $soLeitura = !is_admin();
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="mb-3"><a href="<?= BASE_URL ?>/cobranca_modelos.php" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Modelos</a></div>
@@ -141,4 +141,4 @@ document.getElementById("btnPrevia").addEventListener("click", function () {
   new bootstrap.Modal(document.getElementById("modalPrevia")).show();
 });
 </script>';
-require_once __DIR__ . '/includes/footer.php';
+require_once __DIR__ . '/includes/views/footer.php';

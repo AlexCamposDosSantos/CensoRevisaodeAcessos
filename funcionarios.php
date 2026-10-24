@@ -5,7 +5,7 @@
  * histórico de cargas com o download do original.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_admin();
 
 $consulta = null;
@@ -62,7 +62,7 @@ if (isset($_GET['baixar'])) {
 }
 
 $pageTitle = 'Base de Funcionários';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="row g-4 mb-4">
@@ -148,4 +148,4 @@ require_once __DIR__ . '/includes/header.php';
   </table>
 </div></div></div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

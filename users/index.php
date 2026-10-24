@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $users = $pdo->query('SELECT id, name, email, role, active, last_login, created_at FROM users ORDER BY active DESC, name')->fetchAll();
 $pageTitle = 'Gestão de Usuários';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/views/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -122,4 +122,4 @@ require_once __DIR__ . '/../includes/header.php';
   </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/views/footer.php'; ?>

@@ -5,7 +5,7 @@
  *   GET  envio=id                  → um e-mail já registrado de uma cobrança.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 
 header('X-Frame-Options: SAMEORIGIN');
@@ -16,7 +16,7 @@ if (isset($_GET['envio'])) {
     $e = $st->fetch();
     if (!$e) { http_response_code(404); exit('E-mail não encontrado.'); }
     $assunto = $e['assunto']; $html = email_html($e['corpo'], $e['topo'], $e['rodape'], false);
-    $cab = ['Para' => $e['para_nome'] . ' <' . $e['para_email'] . '>', 'Cc' => $e['cc']];
+    $cab = ['Para' => $e['para_nome'] . ' <' . $e['para_email'] . '>', 'Cc' => $e['cc'], 'Cco' => $e['cco'] ?? ''];
 } else {
     if (!csrf_ok()) { http_response_code(403); exit('Sessão expirada.'); }
     $exemplo = [

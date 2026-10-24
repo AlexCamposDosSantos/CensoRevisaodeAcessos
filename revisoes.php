@@ -1,12 +1,12 @@
 <?php
 /** Todas as revisões: a atual e as anteriores, com acesso aos dados e arquivos de cada uma. */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
 require_login();
 
 $lista = revisoes_lista();
 $pageTitle = 'Revisões';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -42,4 +42,4 @@ require_once __DIR__ . '/includes/header.php';
   </table>
 </div></div></div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

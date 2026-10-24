@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../config/app.php';
 
 /**
  * Conexão SQLite (singleton). Cria a estrutura na primeira abertura — não há

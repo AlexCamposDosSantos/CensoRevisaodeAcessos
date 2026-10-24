@@ -5,7 +5,7 @@
  * então não esbarra no tempo máximo de execução do PHP.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 
 header('Content-Type: application/json; charset=utf-8');
 if (!is_logged_in()) { http_response_code(401); exit(json_encode(['ok' => false, 'erro' => 'Sessão encerrada. Entre de novo.'])); }

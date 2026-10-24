@@ -1,7 +1,7 @@
 <?php
 /** Modelos de cobrança (topo, corpo, rodapé): lista, e excluir (administrador). */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/cobranca.php';
+require_once __DIR__ . '/includes/services/cobranca.php';
 require_login();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $modelos = modelos_cobranca();
 $pageTitle = 'Modelos de Cobrança';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -49,4 +49,4 @@ require_once __DIR__ . '/includes/header.php';
   <?php endforeach; ?>
 </div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>

@@ -5,20 +5,39 @@
  * minutos, a abertura da tela já relê — a consulta é leve.
  */
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/revisao.php';
+require_once __DIR__ . '/includes/services/revisao.php';
+require_once __DIR__ . '/includes/services/atualizacao.php';
 require_login();
 
 $rev = revisao_escolhida();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rev) {
-    if (!csrf_ok()) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$rev) {
+        flash('aviso', 'Não há uma revisão disponível para atualizar.');
+    } elseif (!csrf_ok()) {
         flash('erro', 'Sessão expirada. Tente novamente.');
     } elseif (($_POST['acao'] ?? '') === 'andamento') {
-        $erro = andamento_garantir($rev, true);
-        $erro ? flash('erro', 'Não consegui ler o andamento no Horacius: ' . $erro)
-              : flash('ok', 'Andamento atualizado agora, direto do Horacius.');
+        $resultadoAtualizacao = painel_atualizar_revisao($rev);
+        flash($resultadoAtualizacao['tipo'], $resultadoAtualizacao['texto']);
+    } elseif (($_POST['acao'] ?? '') === 'banco' && is_admin()) {
+        // Troca o banco de TODOS e já relê esta revisão nele (as demais releem ao abrir)
+        try {
+            banco_escolher((string) ($_POST['banco'] ?? ''));
+            $erro = andamento_garantir($rev, true);
+            $erro ? flash('erro', 'Banco trocado para ' . horacius_rotulo() . ', mas a leitura falhou: ' . $erro)
+                  : flash('ok', 'Banco trocado para ' . horacius_rotulo() . ' — andamento relido agora.');
+        } catch (Throwable $e) {
+            flash('erro', $e->getMessage());
+        }
     }
-    header('Location: ' . BASE_URL . '/dashboard.php?r=' . (int) $rev['id']);
+    $destinoAtualizacao = BASE_URL . '/dashboard.php' . ($rev ? '?r=' . (int) $rev['id'] : '');
+    if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo json_encode(['redirect' => $destinoAtualizacao], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    header('Location: ' . $destinoAtualizacao);
     exit;
 }
 
@@ -29,17 +48,18 @@ if ($rev) {
     $grupos  = painel_por_grupo($vinc);
     $totC = array_sum(array_column($vinc, 'concluido'));
     $totP = array_sum(array_column($vinc, 'pendente'));
+    $prioridades = painel_prioridades((int) $rev['id']);
 }
 $todas = revisoes_lista();
 $n  = fn($x) => number_format((int) $x, 0, ',', '.');
 $dh = fn($s) => $s ? date('d/m/Y H:i', strtotime($s)) : '—';
 
 $pageTitle = 'Painel da Revisão';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/views/header.php';
 ?>
 
 <?php if (!$rev): ?>
-  <div class="card"><div class="card-body text-center py-5">
+  <div class="card"><div class="card-body text-center py-5 empty-state">
     <i class="bi bi-clipboard2-plus fs-1 text-muted"></i>
     <h5 class="mt-3">Nenhuma revisão iniciada ainda</h5>
     <p class="text-muted">Uma revisão começa com o envio da base de pessoas — quem entra e com qual vínculo.
@@ -52,8 +72,23 @@ require_once __DIR__ . '/includes/header.php';
   </div></div>
 <?php else: ?>
 
+<section class="overview-banner" aria-label="Resumo da revisão">
+  <div>
+    <div class="eyebrow">Cada acesso conta</div>
+    <h2>Uma visão clara. Uma revisão mais segura.</h2>
+    <p>Da visão geral ao próximo passo: acompanhe o progresso e priorize quem ainda precisa revisar.</p>
+  </div>
+  <a href="<?= BASE_URL ?>/pendentes.php?r=<?= (int) $rev['id'] ?>" class="btn">Ver pendentes <i class="bi bi-arrow-up-right ms-2" aria-hidden="true"></i></a>
+</section>
+<section class="summary-grid" aria-label="Indicadores da revisão">
+  <div class="summary-card"><div class="summary-label">Pessoas na revisão <i class="bi bi-people" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totC + $totP) ?></strong><div class="summary-note">Base total deste ciclo</div></div>
+  <div class="summary-card"><div class="summary-label">Concluídas <i class="bi bi-check2-circle" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totC) ?></strong><div class="summary-note">Pessoas que já revisaram</div></div>
+  <div class="summary-card"><div class="summary-label">Pendentes <i class="bi bi-hourglass-split" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totP) ?></strong><div class="summary-note">Pessoas que faltam revisar</div></div>
+  <div class="summary-card"><div class="summary-label">Progresso geral <i class="bi bi-graph-up-arrow" aria-hidden="true"></i></div><strong class="summary-value"><?= pct($totC, $totC + $totP) ?>%</strong><div class="summary-note">Conclusão da revisão</div></div>
+</section>
+
 <!-- Cabeçalho: qual revisão, desde quando, de onde vem cada número -->
-<div class="card mb-4">
+<div class="card mb-4 review-context">
   <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div class="min-w-0">
       <div class="text-uppercase small fw-bold text-muted" style="letter-spacing:.08em">Revisão</div>
@@ -70,12 +105,31 @@ require_once __DIR__ . '/includes/header.php';
       <?php endif; ?>
       <div class="small text-muted">
         Desde <?= date('d/m/Y', strtotime($rev['inicio'])) ?> ·
-        andamento lido no Horacius (<?= e(horacius_rotulo()) ?>) em <strong><?= $dh($rev['andamento_em']) ?></strong>
+        andamento lido no Horacius (<?= e(horacius_rotulo($rev['andamento_banco'] ?? '')) ?>) em <strong><?= $dh($rev['andamento_em']) ?></strong>
       </div>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-      <form method="POST"><?= csrf_field() ?><input type="hidden" name="acao" value="andamento">
-        <button class="btn btn-outline-primary"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar andamento</button>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <?php $bancos = bancos(); $atual = banco_atual(); ?>
+      <?php if (count($bancos) > 1): ?>
+        <!-- Banco do andamento: vale para todos; só administrador troca -->
+        <form method="POST" class="seg-banco" title="De qual banco do Horacius o andamento é lido">
+          <?= csrf_field() ?><input type="hidden" name="acao" value="banco">
+          <?php foreach ($bancos as $k => $b): ?>
+            <button name="banco" value="<?= e($k) ?>" class="<?= $k === $atual ? 'on' : '' ?> <?= $k === 'producao' ? 'prod' : '' ?>"
+                    <?= (!is_admin() || $k === $atual) ? 'disabled' : '' ?>
+                    <?= is_admin() && $k !== $atual ? 'data-confirm="Ler o andamento de ' . e($b['rotulo'] ?? $k) . '?" data-confirm-text="Vale para todos os usuários. O andamento é relido agora nesse banco." data-confirm-icon="question" data-confirm-btn="Sim, trocar"' : '' ?>>
+              <?= e($b['rotulo'] ?? $k) ?>
+            </button>
+          <?php endforeach; ?>
+        </form>
+      <?php endif; ?>
+      <form method="POST" action="<?= BASE_URL ?>/dashboard.php?r=<?= (int) $rev['id'] ?>" data-refresh-review>
+        <?= csrf_field() ?><input type="hidden" name="acao" value="andamento">
+        <button type="submit" class="btn btn-outline-primary" aria-controls="reviewRefreshStatus">
+          <i class="bi bi-arrow-clockwise me-1" data-refresh-icon aria-hidden="true"></i>
+          <span class="spinner-border spinner-border-sm me-1" data-refresh-spinner aria-hidden="true" hidden></span>
+          <span data-refresh-label>Atualizar andamento</span>
+        </button>
       </form>
       <a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/revisao.php?id=<?= (int) $rev['id'] ?>">
         <i class="bi bi-folder2-open me-1"></i> Dados e arquivos
@@ -87,6 +141,12 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </div>
 
+<div class="review-refresh-status" id="reviewRefreshStatus" role="status" aria-live="polite" hidden>
+  <span class="spinner-border" aria-hidden="true"></span>
+  <div><strong>Atualizando a revisão…</strong><p>Consultando o Horacius e procurando os líderes na BaseFull importada. O painel será recarregado ao concluir.</p><small>Aguarde; a atualização pode levar alguns instantes.</small></div>
+</div>
+<div class="alert alert-danger" data-refresh-error role="alert" hidden></div>
+
 <?php if ($erroAnd): ?>
   <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>
     Não consegui ler o andamento no Horacius — os números abaixo são da última leitura boa.
@@ -97,7 +157,7 @@ require_once __DIR__ . '/includes/header.php';
 <div class="row g-4 mb-4">
   <?php foreach ($grupos as $nomeG => $g): $t = $g['concluido'] + $g['pendente']; $p = $t ? 100 * $g['concluido'] / $t : 0; ?>
     <div class="col-lg-6">
-      <div class="card h-100"><div class="card-body">
+      <div class="card h-100 group-card"><div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
             <div class="fw-bold"><?= e($nomeG) ?></div>
@@ -147,6 +207,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
   </div>
 </div>
+<?php require __DIR__ . '/includes/views/painel_prioridades_view.php'; ?>
 <?php endif; ?>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/views/footer.php'; ?>
