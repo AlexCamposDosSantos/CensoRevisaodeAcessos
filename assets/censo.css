@@ -1,0 +1,139 @@
+/* Censo — mesmo desenho do Mala Direta (menu lateral escuro, cartões, roxo Ânima),
+   com o azul-petróleo como cor de destaque para os dois não se confundirem. */
+:root {
+  --anima-purple: #822981;
+  --censo: #0f6e8c;
+  --censo-dark: #0b5269;
+  --censo-claro: #e6f3f7;
+  --sidebar-bg: #0e1620;
+  --bg-light: #f4f6f9;
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--bg-light); color: #333; }
+
+/* Menu lateral */
+.sidebar {
+  height: 100vh; background: var(--sidebar-bg); width: 250px;
+  position: fixed; top: 0; left: 0; display: flex; flex-direction: column;
+  z-index: 100; box-shadow: 4px 0 15px rgba(0,0,0,.1); overflow-y: auto; overflow-x: hidden;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+.sidebar .brand { padding: 30px 24px; margin-bottom: 10px; }
+.sidebar .brand span { color: #fff; font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .5px; }
+.sidebar .brand small { color: rgba(255,255,255,.5); font-size: .65rem; display: block; margin-top: 4px; }
+
+.sidebar .nav-link {
+  color: rgba(255,255,255,.6); padding: 12px 20px; border-radius: 12px; margin: 4px 15px;
+  display: flex; align-items: center; gap: 12px; font-size: .9rem; font-weight: 500; transition: all .2s ease;
+}
+.sidebar .nav-link:hover { background: rgba(255,255,255,.05); color: #fff; }
+.sidebar .nav-link.active {
+  background: linear-gradient(135deg, #1b8fb3, var(--censo)); color: #fff;
+  box-shadow: 0 4px 12px rgba(15,110,140,.35);
+}
+.sidebar .nav-link.disabled { color: rgba(255,255,255,.3); cursor: default; }
+.sidebar .nav-link.nav-sair { color: #f08a8a; }
+.sidebar .nav-link i { font-size: 1.15rem; }
+.sidebar .nav-section {
+  color: rgba(255,255,255,.3); font-size: .65rem; text-transform: uppercase;
+  letter-spacing: .12em; padding: 20px 24px 8px; font-weight: 700;
+}
+.badge-breve {
+  margin-left: auto; font-size: .6rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.5);
+}
+
+/* Topo e conteúdo */
+.main-content { margin-left: 250px; padding: 35px; }
+.topbar {
+  background: #fff; border-radius: 16px; padding: 16px 28px; margin-bottom: 35px;
+  display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,.03);
+}
+.topbar h5 { margin: 0; font-weight: 700; color: #1a1a2e; font-size: 1.25rem; }
+
+/* Componentes */
+.card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.04); }
+.card-header { background: transparent; border-bottom: 1px solid #f0f0f0; font-weight: 700; padding: 20px; }
+.card-body { padding: 25px; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #1b8fb3, var(--censo)); border: none; padding: 10px 20px;
+  border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(15,110,140,.2);
+}
+.btn-primary:hover, .btn-primary:focus { background: linear-gradient(135deg, #1b8fb3, var(--censo-dark)); filter: brightness(1.05); }
+.btn-outline-primary { color: var(--censo); border-color: var(--censo); }
+.btn-outline-primary:hover { background: var(--censo); border-color: var(--censo); }
+
+.form-control, .form-select { border-radius: 10px; padding: 10px 15px; border: 1px solid #e0e0e0; background-color: #fbfbfb; }
+.form-control:focus, .form-select:focus { border-color: var(--censo); box-shadow: 0 0 0 4px rgba(15,110,140,.1); background-color: #fff; }
+
+.badge { padding: 7px 11px; border-radius: 8px; font-weight: 600; font-size: .75rem; }
+.badge-admin  { background: var(--censo-claro); color: var(--censo-dark); }
+.badge-user   { background: #f0f0f0; color: #555; }
+.badge-ativo  { background: #e8f5e9; color: #2e7d32; }
+.badge-inativo{ background: #f3f3f3; color: #888; }
+
+/* Cartões de indicador (dashboard) */
+.kpi { display: flex; align-items: center; gap: 16px; }
+.kpi-ico { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 1.35rem;
+           background: var(--censo-claro); color: var(--censo); flex: none; }
+.kpi-num { font-size: 1.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+.kpi-rot { font-size: .8rem; color: #888; margin-top: 4px; }
+
+/* Mobile */
+.btn-hamburger {
+  display: none; position: fixed; top: 16px; left: 16px; z-index: 200; background: var(--sidebar-bg); color: #fff;
+  border: none; border-radius: 10px; width: 42px; height: 42px; font-size: 1.3rem;
+  align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.2); cursor: pointer;
+}
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
+.sidebar-overlay.active { display: block; }
+@media (max-width: 992px) {
+  .btn-hamburger { display: flex; }
+  .sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; padding: 20px 16px; padding-top: 70px; }
+}
+
+/* ── Painel da revisão ───────────────────────────────────────────────────────
+   Concluído em azul-petróleo (a cor do Censo), pendente em cinza — o mesmo par
+   do painel do Power BI. Percentual + barra no lugar da pizza de duas fatias. */
+:root { --c-ok: #0f6e8c; --c-pend: #c9d1da; }
+.painel-pct { font-size: 2.6rem; font-weight: 800; color: #1a1a2e; line-height: 1; font-variant-numeric: tabular-nums; }
+.meter { height: 12px; border-radius: 999px; background: var(--c-pend); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--c-ok); border-radius: 999px 0 0 999px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 3px; vertical-align: 0; }
+.dot-ok { background: var(--c-ok); }
+.dot-pend { background: var(--c-pend); }
+
+.vinc-linha { display: grid; grid-template-columns: 120px minmax(0, 1fr) 70px 120px; align-items: center; gap: 14px; padding: 9px 0; }
+.vinc-linha + .vinc-linha { border-top: 1px solid #f0f0f0; }
+.vinc-nome { font-weight: 600; color: #333; }
+.vinc-barra { display: flex; height: 30px; border-radius: 8px; overflow: hidden; gap: 2px; background: #fff; }
+.vinc-barra .seg-ok { background: var(--c-ok); color: #fff; font-weight: 700; font-size: .85rem;
+                      display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.vinc-barra .seg-pend { background: var(--c-pend); }
+.vinc-pct { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.vinc-pend { text-align: right; font-weight: 700; color: #1a1a2e; text-decoration: none; font-variant-numeric: tabular-nums; }
+.vinc-pend span { font-weight: 500; color: #888; font-size: .8rem; }
+.vinc-pend:hover { color: var(--censo); }
+.vinc-total { font-size: .95rem; }
+@media (max-width: 640px) {
+  .vinc-linha { grid-template-columns: 1fr auto; }
+  .vinc-barra { grid-column: 1 / -1; order: 3; }
+}
+
+/* ── Revisões: nova revisão, arquivos e dados ─────────────────────────────── */
+.passo { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+         background: var(--censo); color: #fff; font-size: .8rem; margin-right: 8px; }
+.arq-bloco { border: 1px dashed #d6dde4; border-radius: 12px; padding: 16px; background: #fbfcfd; }
+.arq-bloco + .arq-bloco { margin-top: 14px; }
+.arq-linha { padding: 10px 0; }
+.arq-linha + .arq-linha { border-top: 1px solid #f0f0f0; }
+.badge-pend { background: #fff4e5; color: #a15c00; }
+.min-w-0 { min-width: 0; }
+
+/* Marca no menu lateral */
+.sidebar .brand .brand-nome { display: flex; align-items: center; gap: 10px; }
+.sidebar .brand .brand-nome img { flex: none; }

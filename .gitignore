@@ -1,0 +1,12 @@
+# Banco local (usuários com hash de senha, revisões) e arquivos enviados nas revisões
+/dados/*
+!/dados/.htaccess
+
+# Credenciais locais (o padrão é ler o .env do Prumo)
+/config.local.php
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

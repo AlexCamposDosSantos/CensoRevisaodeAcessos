@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Aba do navegador (16–32px): o mesmo "C", com traço proporcionalmente mais grosso -->
+  <path d="M26.2 9.2A12 12 0 1 0 26.2 22.8" stroke="#0f6e8c" stroke-width="5.5"/>
+  <rect x="22.5" y="12" width="8" height="8" rx="1.5" fill="#14202b"/>
+</svg>

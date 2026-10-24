@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Censo: um "C" aberto com um quadradinho na abertura — a pessoa que ainda
+       falta contar. Versão para fundo claro. -->
+  <path d="M38.5 14.5A17 17 0 1 0 38.5 33.5" stroke="#0f6e8c" stroke-width="7"/>
+  <rect x="35" y="20.5" width="7" height="7" rx="1.5" fill="#14202b"/>
+</svg>
