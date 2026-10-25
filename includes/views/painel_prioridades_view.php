@@ -83,11 +83,13 @@ $prioQs = fn(array $extra = []) => http_build_query(['r' => (int) $rev['id'], 'l
     <aside class="priority-insights" aria-label="Informações para priorizar">
       <div class="card"><div class="card-body">
         <div class="eyebrow">Potencial de avanço</div><h3>Comece pelo maior volume</h3>
-        <?php if ($prioridades['top5_pendentes']): ?>
-          <p>Concluir as pendências dos <strong><?= min(5, count($prioridades['lideres'])) ?> primeiros líderes</strong> acrescentaria <strong><?= pct($prioridades['top5_pendentes'], $prioridades['total']) ?> pontos percentuais</strong> ao progresso geral.</p>
-          <div class="priority-projection"><span>Progresso atual<strong><?= pct($totC, $prioridades['total']) ?>%</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i><span>Com essas conclusões<strong><?= pct($totC + $prioridades['top5_pendentes'], $prioridades['total']) ?>%</strong></span></div>
-          <small class="text-muted">Cenário calculado sobre as pendências atuais, sem previsão de prazo.</small>
-        <?php else: ?><p>Identifique os responsáveis pelas pendências para viabilizar o acompanhamento por equipe.</p><?php endif; ?>
+        <?php $pm = $prioridades['meta']; // só o grupo da meta, independe do filtro do ranking ?>
+        <?php if ($pm['top5_pendentes']): ?>
+          <p>Em <strong><?= e(GRUPO_META) ?></strong>, concluir as pendências dos <strong><?= min(5, $pm['lideres']) ?> líderes com mais pendências</strong> acrescentaria <strong><?= pct($pm['top5_pendentes'], $pm['total']) ?> pontos percentuais</strong> à meta da revisão.</p>
+          <div class="priority-projection"><span>Meta hoje<strong><?= pct($pm['concluidos'], $pm['total']) ?>%</strong></span><i class="bi bi-arrow-right" aria-hidden="true"></i><span>Com essas conclusões<strong><?= pct($pm['concluidos'] + $pm['top5_pendentes'], $pm['total']) ?>%</strong></span></div>
+          <small class="text-muted">Cenário calculado sobre as pendências atuais de <?= e(GRUPO_META) ?>, sem previsão de prazo.</small>
+        <?php elseif ($pm['total'] && !$pm['pendentes']): ?><p>Não há pendências em <?= e(GRUPO_META) ?>: a meta da revisão está concluída.</p>
+        <?php else: ?><p>Identifique os responsáveis pelas pendências de <?= e(GRUPO_META) ?> para viabilizar o acompanhamento por equipe.</p><?php endif; ?>
       </div></div>
       <div class="card"><div class="card-body">
         <div class="eyebrow">O que compõe o restante</div><h3>Pendências por vínculo</h3>

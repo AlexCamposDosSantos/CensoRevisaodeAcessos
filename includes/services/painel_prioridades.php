@@ -19,6 +19,12 @@ function painel_prioridades(int $revId, array $vinculos = []): array
     } else {
         $painel['ranking'] = ['vinculos' => [], 'lideres' => $painel['lideres'], 'pendentes' => $painel['pendentes']];
     }
+    // O grupo da meta, sempre (independe do filtro do ranking): base do "Potencial de avanço"
+    $daMeta = array_keys(array_filter(VINCULOS, fn($g) => $g === GRUPO_META));
+    $m = (isset($sub) && $vinculos === $daMeta) ? $sub
+       : painel_prioridades_agrupar(array_values(array_filter($pessoas, fn($p) => in_array($p['vinculo'], $daMeta, true))), $mapa, $cobradas);
+    $painel['meta'] = ['total' => $m['total'], 'pendentes' => $m['pendentes'], 'concluidos' => $m['total'] - $m['pendentes'],
+                       'top5_pendentes' => $m['top5_pendentes'], 'lideres' => count($m['lideres'])];
     $carga = funcionarios_carga_atual();
     $painel['hierarquia']['carga'] = $carga ? ['id' => (int) $carga['id'], 'enviado_em' => $carga['enviado_em']] : null;
     return $painel;

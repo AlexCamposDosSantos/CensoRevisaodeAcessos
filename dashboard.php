@@ -194,7 +194,7 @@ require_once __DIR__ . '/includes/views/header.php';
 </div>
 
 <!-- Por vínculo: barra 0–100% com os números escritos + pendentes ao lado -->
-<div class="card">
+<div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Status da revisão por vínculo</span>
     <span class="small fw-normal text-muted"><span class="dot dot-ok"></span> Concluído &nbsp; <span class="dot dot-pend"></span> Pendente</span>
