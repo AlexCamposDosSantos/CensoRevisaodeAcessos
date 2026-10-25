@@ -1,7 +1,14 @@
 <?php // Recebe $prioridades, $rev, $n, $dh, $totC e $totP do painel.
 $prioUrl = fn(array $f = []) => BASE_URL . '/pendentes.php?' . http_build_query(['r' => (int) $rev['id']] + $f);
 $prioTodos = ($_GET['lideres'] ?? '') === 'todos';
-$prioLista = $prioTodos ? $prioridades['lideres'] : array_slice($prioridades['lideres'], 0, 10);
+// Ranking filtrado pelos vínculos marcados (sem filtro = todos); o resto da seção segue geral
+$prioRank = $prioridades['ranking'];
+$prioSel = $prioRank['vinculos'] ?: array_keys(VINCULOS);
+$prioTotP = $prioRank['pendentes'];
+$prioLista = $prioTodos ? $prioRank['lideres'] : array_slice($prioRank['lideres'], 0, 10);
+// Com um vínculo só, "Ver equipe" já abre os pendentes filtrados nele
+$prioEquipe = fn(string $email) => $prioUrl(['lider' => $email] + (count($prioRank['vinculos']) === 1 ? ['vinculo' => $prioRank['vinculos'][0]] : []));
+$prioQs = fn(array $extra = []) => http_build_query(['r' => (int) $rev['id'], 'lvf' => 1] + ($prioRank['vinculos'] ? ['lv' => $prioRank['vinculos']] : []) + $extra);
 ?>
 <section class="priority-section" id="prioridades" aria-labelledby="priorityTitle">
   <div class="priority-heading">
@@ -32,7 +39,24 @@ $prioLista = $prioTodos ? $prioridades['lideres'] : array_slice($prioridades['li
   </div>
   <div class="priority-layout">
     <div class="card min-w-0" id="ranking-lideres">
-      <div class="card-header d-flex flex-wrap justify-content-between gap-2"><span>Líderes com mais pendências na equipe</span><span class="small text-muted fw-normal"><?= $n(count($prioridades['lideres'])) ?> líderes com pendências</span></div>
+      <div class="card-header d-flex flex-wrap justify-content-between gap-2"><span>Líderes com mais pendências na equipe</span><span class="small text-muted fw-normal"><?= $n(count($prioRank['lideres'])) ?> líderes com pendências<?= $prioRank['vinculos'] ? ' em ' . e(implode(', ', $prioRank['vinculos'])) : '' ?></span></div>
+      <!-- Filtro por vínculo: múltipla seleção, aplica ao marcar -->
+      <form method="GET" action="#ranking-lideres" class="rank-filtro" data-rank-filtro>
+        <input type="hidden" name="r" value="<?= (int) $rev['id'] ?>"><input type="hidden" name="lvf" value="1">
+        <?php if ($prioTodos): ?><input type="hidden" name="lideres" value="todos"><?php endif; ?>
+        <span class="rank-filtro-rot">Vínculos</span>
+        <?php foreach (array_keys(VINCULOS) as $v): ?>
+          <label class="rank-chip"><input type="checkbox" name="lv[]" value="<?= e($v) ?>" <?= in_array($v, $prioSel, true) ? 'checked' : '' ?>><span><?= e($v) ?></span></label>
+        <?php endforeach; ?>
+        <?php if ($prioRank['vinculos']): ?><a class="small ms-1" href="?<?= e(http_build_query(['r' => (int) $rev['id'], 'lvf' => 1] + ($prioTodos ? ['lideres' => 'todos'] : []))) ?>#ranking-lideres">todos</a><?php endif; ?>
+        <noscript><button class="btn btn-sm btn-outline-primary">Aplicar</button></noscript>
+      </form>
+      <script>
+        // Aplica ao marcar; desmarcar o último volta para "todos" (nenhum marcado = sem filtro)
+        document.querySelectorAll('[data-rank-filtro] input[type=checkbox]').forEach(function (c) {
+          c.addEventListener('change', function () { c.form.submit(); });
+        });
+      </script>
       <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover align-middle mb-0 priority-table">
           <caption class="visually-hidden">Equipes ordenadas pela quantidade de pessoas pendentes. O impacto representa a participação no total de pendências da revisão.</caption>
@@ -41,19 +65,19 @@ $prioLista = $prioTodos ? $prioridades['lideres'] : array_slice($prioridades['li
           <?php foreach ($prioLista as $prioIndice => $prioLider): ?>
             <tr>
               <th scope="row" class="ps-4 fw-normal"><div class="leader-identity"><span class="leader-rank"><?= $prioIndice + 1 ?></span><div><strong><?= e($prioLider['nome']) ?></strong><small><?= e($prioLider['email']) ?></small></div></div></th>
-              <td><strong class="priority-count"><?= $n($prioLider['pendentes']) ?></strong><span class="priority-impact"><?= pct($prioLider['pendentes'], $totP) ?>% do restante</span><div class="priority-bar" aria-hidden="true"><span style="width:<?= $totP ? round(100 * $prioLider['pendentes'] / $totP, 2) : 0 ?>%"></span></div></td>
+              <td><strong class="priority-count"><?= $n($prioLider['pendentes']) ?></strong><span class="priority-impact"><?= pct($prioLider['pendentes'], $prioTotP) ?>% do restante<?= $prioRank['vinculos'] ? ' filtrado' : '' ?></span><div class="priority-bar" aria-hidden="true"><span style="width:<?= $prioTotP ? round(100 * $prioLider['pendentes'] / $prioTotP, 2) : 0 ?>%"></span></div></td>
               <td><strong><?= pct($prioLider['concluidos'], $prioLider['total']) ?>%</strong><small class="d-block text-muted"><?= $n($prioLider['concluidos']) ?> de <?= $n($prioLider['total']) ?> pessoas</small></td>
               <td><?= $n($prioLider['nunca_cobrados']) ?></td>
               <td class="small text-nowrap"><?= $prioLider['ultima_cobranca'] ? $dh($prioLider['ultima_cobranca']) : 'Sem envio' ?></td>
-              <td class="pe-4"><a class="btn btn-sm btn-outline-primary text-nowrap" href="<?= e($prioUrl(['lider' => $prioLider['email']])) ?>" aria-label="Ver pendentes da equipe de <?= e($prioLider['nome']) ?>">Ver equipe <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></td>
+              <td class="pe-4"><a class="btn btn-sm btn-outline-primary text-nowrap" href="<?= e($prioEquipe($prioLider['email'])) ?>" aria-label="Ver pendentes da equipe de <?= e($prioLider['nome']) ?>">Ver equipe <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></td>
             </tr>
           <?php endforeach; ?>
-          <?php if (!$prioLista): ?><tr><td colspan="6" class="text-center py-4 text-muted">As pendências atuais estão sem responsável contatável. Confira os motivos ao lado.</td></tr><?php endif; ?>
+          <?php if (!$prioLista): ?><tr><td colspan="6" class="text-center py-4 text-muted"><?= $prioRank['vinculos'] && !$prioTotP ? 'Nenhuma pendência nos vínculos marcados.' : 'As pendências atuais estão sem responsável contatável. Confira os motivos ao lado.' ?></td></tr><?php endif; ?>
           </tbody>
         </table>
       </div></div>
       <div class="priority-table-foot"><span>Ranking por pessoas pendentes na equipe; não indica a revisão pessoal do líder.</span>
-        <?php if (count($prioridades['lideres']) > 10): ?><a href="?<?= e(http_build_query(['r' => (int) $rev['id']] + ($prioTodos ? [] : ['lideres' => 'todos']))) ?>#ranking-lideres"><?= $prioTodos ? 'Mostrar os 10 primeiros' : 'Ver todos os líderes' ?></a><?php endif; ?>
+        <?php if (count($prioRank['lideres']) > 10): ?><a href="?<?= e($prioQs($prioTodos ? [] : ['lideres' => 'todos'])) ?>#ranking-lideres"><?= $prioTodos ? 'Mostrar os 10 primeiros' : 'Ver todos os líderes' ?></a><?php endif; ?>
       </div>
     </div>
     <aside class="priority-insights" aria-label="Informações para priorizar">

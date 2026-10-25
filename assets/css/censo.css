@@ -177,3 +177,64 @@ body { font-family: 'Inter', sans-serif; background: var(--bg-light); color: #33
 .banco-item { border: 1px solid #e6eaef; border-radius: 10px; padding: 12px 14px; }
 .banco-item + .banco-item { margin-top: 10px; }
 .banco-item.em-uso { border-color: var(--censo); background: var(--censo-claro); }
+
+/* ─── Evolução da revisão por vínculo (gráfico de linhas) ───────────────────
+   Cores por vínculo em ordem fixa, validadas para daltonismo (validate_palette:
+   CVD ΔE ≥ 9,1 entre vizinhas). Verde-água e amarelo ficam abaixo de 3:1 no fundo
+   claro — por isso o nome vai escrito na ponta da linha e há a tabela. */
+.evo-root { --evo-1: #2a78d6; --evo-2: #eb6834; --evo-3: #1baf7a; --evo-4: #eda100; --evo-superficie: #fff; }
+.evo-legenda { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; font-size: .8rem; color: #3b4652; }
+.evo-legenda li { display: flex; align-items: center; gap: 6px; }
+.evo-legenda strong { color: #1d2733; font-variant-numeric: tabular-nums; }
+.evo-chip { display: inline-block; width: 12px; height: 4px; border-radius: 2px; flex: none; }
+.evo-plot { position: relative; width: 100%; min-height: 300px; }
+.evo-svg { display: block; overflow: visible; }
+.evo-grade { stroke: #edf0f3; stroke-width: 1; }
+.evo-base { stroke: #c9d1da; stroke-width: 1; }
+.evo-eixo { font-size: 11px; fill: #6b7785; font-variant-numeric: tabular-nums; }
+.evo-linha { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.evo-ponto { stroke: var(--evo-superficie); stroke-width: 2; }
+.evo-rotulo { font-size: 12px; fill: #3b4652; }
+.evo-rotulo-num { font-weight: 700; fill: #1d2733; font-variant-numeric: tabular-nums; }
+.evo-guia { stroke: #9aa5b1; stroke-width: 1; stroke-dasharray: 3 3; }
+.evo-tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid #dfe5ea; border-radius: 8px; box-shadow: 0 6px 18px rgba(16, 40, 50, .12); padding: 8px 10px; font-size: .78rem; min-width: 190px; z-index: 2; }
+.evo-tip-dia { font-weight: 700; color: #1d2733; margin-bottom: 4px; }
+.evo-tip-linha { display: flex; align-items: center; gap: 6px; color: #3b4652; line-height: 1.7; }
+.evo-tip-linha strong { margin-left: auto; color: #1d2733; font-variant-numeric: tabular-nums; }
+.evo-tip-linha small { color: #6b7785; font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; }
+
+/* Filtro do ranking de líderes por vínculo (chips de múltipla seleção) */
+.rank-filtro { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px; border-bottom: 1px solid #eef1f4; }
+.rank-filtro-rot { font-size: .75rem; font-weight: 600; color: #6b7785; margin-right: 4px; }
+.rank-chip { position: relative; cursor: pointer; margin: 0; }
+.rank-chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.rank-chip span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid #cfd8de; border-radius: 999px; font-size: .78rem; color: #4a5763; background: #fff; transition: background .15s, border-color .15s; }
+.rank-chip span::before { content: ''; width: 12px; height: 12px; border: 1.5px solid #9aa7b2; border-radius: 3px; background: #fff; }
+.rank-chip input:checked + span { background: var(--censo-claro); border-color: var(--censo); color: var(--censo-dark); font-weight: 600; }
+.rank-chip input:checked + span::before { background: var(--censo) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6 9.6 3.6' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/10px no-repeat; border-color: var(--censo); }
+.rank-chip input:focus-visible + span { outline: 2px solid var(--censo); outline-offset: 2px; }
+
+/* Janela de progresso da nova revisão */
+.proc-fundo { position: fixed; inset: 0; z-index: 1080; background: rgba(12, 32, 40, .45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.proc-fundo[hidden] { display: none; }
+.proc-caixa { background: #fff; border-radius: 14px; box-shadow: 0 18px 50px rgba(12, 32, 40, .25); width: 100%; max-width: 520px; padding: 24px 26px; max-height: calc(100dvh - 32px); overflow: auto; }
+.proc-etapas { list-style: none; margin: 0; padding: 0; }
+.proc-etapas li { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid #f0f2f4; color: #8a95a1; }
+.proc-etapas li:first-child { border-top: 0; }
+.proc-etapas li strong { display: block; font-size: .9rem; font-weight: 600; }
+.proc-etapas li small { display: block; font-size: .76rem; line-height: 1.45; margin-top: 2px; }
+.proc-ico { flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; border: 2px solid #d5dce2; position: relative; }
+.proc-etapas li.proc-andamento { color: #1d2733; }
+.proc-etapas li.proc-andamento .proc-ico { border-color: var(--censo-claro); border-top-color: var(--censo); animation: proc-gira .8s linear infinite; }
+.proc-etapas li.proc-ok, .proc-etapas li.proc-aviso, .proc-etapas li.proc-erro { color: #1d2733; }
+.proc-etapas li.proc-ok small, .proc-etapas li.proc-aviso small { color: #5b6772; }
+.proc-etapas li.proc-ok .proc-ico { border-color: var(--censo); background: var(--censo); }
+.proc-etapas li.proc-ok .proc-ico::after { content: ''; position: absolute; left: 5px; top: 2px; width: 6px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.proc-etapas li.proc-aviso .proc-ico { border-color: #d48a00; background: #d48a00; }
+.proc-etapas li.proc-aviso .proc-ico::after { content: '!'; position: absolute; inset: 0; color: #fff; font-size: 12px; font-weight: 800; line-height: 16px; text-align: center; }
+.proc-etapas li.proc-erro .proc-ico { border-color: #c0392b; background: #c0392b; }
+.proc-etapas li.proc-erro .proc-ico::after { content: '×'; position: absolute; inset: 0; color: #fff; font-size: 15px; font-weight: 700; line-height: 15px; text-align: center; }
+.proc-etapas li.proc-erro small { color: #a5281b; }
+.proc-rodape { display: flex; justify-content: flex-end; margin-top: 14px; }
+@keyframes proc-gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .proc-etapas li.proc-andamento .proc-ico { animation-duration: 2.4s; } }

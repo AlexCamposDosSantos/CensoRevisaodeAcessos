@@ -48,7 +48,13 @@ if ($rev) {
     $grupos  = painel_por_grupo($vinc);
     $totC = array_sum(array_column($vinc, 'concluido'));
     $totP = array_sum(array_column($vinc, 'pendente'));
-    $prioridades = painel_prioridades((int) $rev['id']);
+    // Filtro do ranking de líderes por vínculo (múltipla seleção). Sem escolha na URL,
+    // começa nos vínculos da meta (Professor desmarcado); o formulário marca lvf=1 e
+    // aí vale o que veio — nada marcado = todos.
+    $prioVinculos = isset($_GET['lvf']) || isset($_GET['lv'])
+        ? array_values(array_intersect(array_keys(VINCULOS), (array) ($_GET['lv'] ?? [])))
+        : array_keys(array_filter(VINCULOS, fn($g) => $g === GRUPO_META));
+    $prioridades = painel_prioridades((int) $rev['id'], $prioVinculos);
 }
 $todas = revisoes_lista();
 $n  = fn($x) => number_format((int) $x, 0, ',', '.');
@@ -215,6 +221,7 @@ require_once __DIR__ . '/includes/views/header.php';
     </div>
   </div>
 </div>
+<?php require __DIR__ . '/includes/views/evolucao_view.php'; ?>
 <?php require __DIR__ . '/includes/views/painel_prioridades_view.php'; ?>
 <?php endif; ?>
 

@@ -2,11 +2,23 @@
 /** Priorização da revisão: mesmas regras de status, hierarquia e envios do Censo. */
 require_once __DIR__ . '/cobranca.php';
 
-/** Carrega todos os participantes enviados; não usa o limite visual da lista de pendentes. */
-function painel_prioridades(int $revId): array
+/**
+ * Carrega todos os participantes enviados; não usa o limite visual da lista de pendentes.
+ * $vinculos filtra SÓ o ranking de líderes ('ranking'): os demais números seguem gerais.
+ */
+function painel_prioridades(int $revId, array $vinculos = []): array
 {
     $pessoas = array_values(array_filter(base_pessoas($revId), fn($p) => $p['status'] !== 'fora'));
-    $painel = painel_prioridades_agrupar($pessoas, lideres_das_pessoas($pessoas), pessoas_cobradas($revId));
+    $mapa = lideres_das_pessoas($pessoas);
+    $cobradas = pessoas_cobradas($revId);
+    $painel = painel_prioridades_agrupar($pessoas, $mapa, $cobradas);
+    $vinculos = array_values(array_intersect(array_keys(VINCULOS), $vinculos));
+    if ($vinculos && count($vinculos) < count(VINCULOS)) {
+        $sub = painel_prioridades_agrupar(array_values(array_filter($pessoas, fn($p) => in_array($p['vinculo'], $vinculos, true))), $mapa, $cobradas);
+        $painel['ranking'] = ['vinculos' => $vinculos, 'lideres' => $sub['lideres'], 'pendentes' => $sub['pendentes']];
+    } else {
+        $painel['ranking'] = ['vinculos' => [], 'lideres' => $painel['lideres'], 'pendentes' => $painel['pendentes']];
+    }
     $carga = funcionarios_carga_atual();
     $painel['hierarquia']['carga'] = $carga ? ['id' => (int) $carga['id'], 'enviado_em' => $carga['enviado_em']] : null;
     return $painel;

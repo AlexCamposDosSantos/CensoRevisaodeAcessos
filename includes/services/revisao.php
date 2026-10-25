@@ -103,6 +103,10 @@ function revisao_estrutura(): void
     // Bases criadas antes das colunas de líder ganham as colunas (vazias)
     $cols = array_column($pdo->query('PRAGMA table_info(base_pessoas)')->fetchAll(), 'name');
     foreach (['lider_nome', 'lider_email'] as $c) if (!in_array($c, $cols, true)) $pdo->exec("ALTER TABLE base_pessoas ADD COLUMN {$c} TEXT");
+    // Primeira revisão registrada de cada pessoa: o dia em que ela passou a "concluída" (curva de evolução)
+    if (!in_array('primeira', array_column($pdo->query('PRAGMA table_info(revisados)')->fetchAll(), 'name'), true)) {
+        $pdo->exec('ALTER TABLE revisados ADD COLUMN primeira TEXT');
+    }
     // De qual banco (produção/homologação) veio o último andamento
     if (!in_array('andamento_banco', array_column($pdo->query('PRAGMA table_info(revisoes)')->fetchAll(), 'name'), true)) {
         $pdo->exec('ALTER TABLE revisoes ADD COLUMN andamento_banco TEXT');
@@ -236,7 +240,8 @@ function andamento_atualizar(array $rev): int
                COUNT(*)                AS linhas,
                SUM(r.atitude = 1)      AS mantidos,
                SUM(r.atitude <> 1)     AS revogados,
-               MAX(r.datahoraregistro) AS ultima
+               MAX(r.datahoraregistro) AS ultima,
+               MIN(r.datahoraregistro) AS primeira
           FROM ac_revisao r
           JOIN perfilacesso p ON p.codperfil = r.codperfil
           JOIN acesso a       ON a.codacesso = p.codacesso
@@ -249,10 +254,10 @@ function andamento_atualizar(array $rev): int
     $pdo->beginTransaction();
     try {
         $pdo->prepare('DELETE FROM revisados WHERE revisao_id = ?')->execute([$rev['id']]);
-        $ins = $pdo->prepare('INSERT INTO revisados (revisao_id, codigo, linhas, mantidos, revogados, ultima) VALUES (?, ?, ?, ?, ?, ?)');
+        $ins = $pdo->prepare('INSERT INTO revisados (revisao_id, codigo, linhas, mantidos, revogados, ultima, primeira) VALUES (?, ?, ?, ?, ?, ?, ?)');
         $n = 0;
         while ($r = $st->fetch()) {
-            $ins->execute([$rev['id'], (int) $r['codigo'], (int) $r['linhas'], (int) $r['mantidos'], (int) $r['revogados'], $r['ultima']]);
+            $ins->execute([$rev['id'], (int) $r['codigo'], (int) $r['linhas'], (int) $r['mantidos'], (int) $r['revogados'], $r['ultima'], $r['primeira']]);
             $n++;
         }
         $pdo->prepare("UPDATE revisoes SET andamento_em = datetime('now','localtime'), andamento_erro = NULL, andamento_banco = ? WHERE id = ?")->execute([banco_atual(), $rev['id']]);
@@ -299,6 +304,50 @@ function painel_por_vinculo(int $revId): array
     foreach (array_keys(VINCULOS) as $v) $porVinculo[$v] = ['concluido' => 0, 'pendente' => 0];
     foreach ($st->fetchAll() as $r) $porVinculo[$r['vinculo']] = ['concluido' => (int) $r['concluido'], 'pendente' => (int) $r['pendente']];
     return $porVinculo;
+}
+
+/**
+ * Evolução: % acumulado de quem já revisou, por vínculo, dia a dia desde o
+ * início. Conta a PRIMEIRA revisão de cada pessoa (o dia em que ela passou a
+ * concluída); leituras antigas sem essa data usam a última, até a próxima atualização.
+ * @return array{dias:string[], series:array<string,array{total:int, pct:float[], qtd:int[]}>}
+ */
+function evolucao_por_vinculo(array $rev): array
+{
+    $st = db()->prepare("
+        SELECT b.vinculo, date(COALESCE(r.primeira, r.ultima)) AS dia, COUNT(*) AS n
+          FROM base_pessoas b
+          JOIN revisados r ON r.revisao_id = b.revisao_id AND r.codigo = b.codigo
+         WHERE b.revisao_id = ? AND b.enviado = 1
+         GROUP BY b.vinculo, dia");
+    $st->execute([$rev['id']]);
+    $porDia = [];
+    foreach ($st->fetchAll() as $r) $porDia[$r['vinculo']][(string) $r['dia']] = (int) $r['n'];
+
+    $tot = db()->prepare('SELECT vinculo, COUNT(*) FROM base_pessoas WHERE revisao_id = ? AND enviado = 1 GROUP BY vinculo');
+    $tot->execute([$rev['id']]);
+    $totais = $tot->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    $ini = substr((string) $rev['inicio'], 0, 10);
+    $fim = substr((string) ($rev['andamento_em'] ?: date('Y-m-d')), 0, 10);
+    $dias = [];
+    for ($d = $ini; $d <= $fim; $d = date('Y-m-d', strtotime($d . ' +1 day'))) $dias[] = $d;
+
+    $series = [];
+    foreach (array_keys(VINCULOS) as $v) {
+        $t = (int) ($totais[$v] ?? 0);
+        if (!$t) continue;
+        // Revisões registradas antes do início da revisão (não deveria haver) contam no primeiro dia
+        $acum = array_sum(array_filter($porDia[$v] ?? [], fn($k) => $k < $ini, ARRAY_FILTER_USE_KEY));
+        $pct = []; $qtd = [];
+        foreach ($dias as $d) {
+            $acum += $porDia[$v][$d] ?? 0;
+            $qtd[] = $acum;
+            $pct[] = round(100 * $acum / $t, 1);
+        }
+        $series[$v] = ['total' => $t, 'pct' => $pct, 'qtd' => $qtd];
+    }
+    return ['dias' => $dias, 'series' => $series];
 }
 
 /** Soma por grupo de acompanhamento (os dois cartões do topo). */
