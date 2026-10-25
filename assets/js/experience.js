@@ -118,3 +118,91 @@
     window.addEventListener('pageshow', event => { if (event.persisted) restore(); });
   });
 })();
+
+/* Melhorias apenas de apresentação e navegação. Não envia ou modifica dados. */
+(() => {
+  'use strict';
+  const main = document.getElementById('conteudo');
+  if (!main) return;
+
+  // Harmoniza os filtros existentes, preservando seus campos, URLs e eventos.
+  main.querySelectorAll('form[method="get" i]').forEach(form => {
+    if (form.matches('[data-rank-filtro]')) return;
+    if (!form.classList.contains('card') && !form.querySelector('input[name="q"],input[name="cpf"]')) return;
+    form.classList.add('ui-filter-form');
+    (form.querySelector('.card-body') || form).classList.add('ui-filter-fields');
+  });
+
+  // Os comandos continuam os mesmos; ícones ganham uma área de clique e nome acessível.
+  main.querySelectorAll('.btn').forEach(button => {
+    if (button.textContent.trim() || !button.querySelector('i')) return;
+    button.classList.add('btn-icon');
+    if (!button.hasAttribute('aria-label') && button.title) button.setAttribute('aria-label', button.title);
+  });
+  main.querySelectorAll('thead th:not([scope])').forEach(cell => cell.setAttribute('scope', 'col'));
+
+  // Indica a rolagem só quando uma tabela realmente ultrapassa a área disponível.
+  const entries = [...main.querySelectorAll('.table-responsive')].map((area, index) => {
+    const hint = document.createElement('p');
+    hint.className = 'table-scroll-hint';
+    hint.id = 'censoTableHint-' + index;
+    hint.hidden = true;
+    hint.textContent = '↔ Role na horizontal para consultar todas as colunas.';
+    area.insertAdjacentElement('afterend', hint);
+    area.classList.add('table-scroll');
+    const initialTabindex = area.getAttribute('tabindex');
+    const initialDescription = area.getAttribute('aria-describedby');
+    const update = () => {
+      const overflow = area.clientWidth > 0 && area.scrollWidth > area.clientWidth + 2;
+      area.classList.toggle('can-scroll', overflow);
+      area.classList.toggle('at-start', area.scrollLeft <= 2);
+      area.classList.toggle('at-end', area.scrollLeft + area.clientWidth >= area.scrollWidth - 2);
+      hint.hidden = !overflow;
+      if (overflow) {
+        if (initialTabindex === null) area.setAttribute('tabindex', '0');
+        area.setAttribute('aria-describedby', [initialDescription, hint.id].filter(Boolean).join(' '));
+      } else {
+        if (initialTabindex === null) area.removeAttribute('tabindex');
+        if (initialDescription === null) area.removeAttribute('aria-describedby');
+        else area.setAttribute('aria-describedby', initialDescription);
+      }
+    };
+    area.addEventListener('scroll', update, { passive: true });
+    return { area, update };
+  });
+  let pending = false;
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { entries.forEach(entry => entry.update()); pending = false; });
+  };
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(schedule);
+    entries.forEach(({ area }) => { observer.observe(area); const table = area.querySelector('table'); if (table) observer.observe(table); });
+  }
+  window.addEventListener('resize', schedule, { passive: true });
+  document.addEventListener('toggle', schedule, true);
+  if (document.fonts) document.fonts.ready.then(schedule);
+  schedule();
+
+  // Completa a navegação da busca existente: setas, Home/End e retorno de foco.
+  const dialog = document.getElementById('navDialog');
+  const input = document.getElementById('navQuery');
+  const results = document.getElementById('navResults');
+  const trigger = document.getElementById('navSearchTrigger');
+  if (dialog && input && results && trigger) {
+    dialog.addEventListener('close', () => trigger.focus());
+    dialog.addEventListener('keydown', event => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      const links = [...results.querySelectorAll('a')].filter(link => !link.hidden);
+      if (!links.length) return;
+      const index = links.indexOf(document.activeElement);
+      if (document.activeElement === input && event.key === 'ArrowUp') { event.preventDefault(); links.at(-1).focus(); }
+      if (index < 0) return;
+      if (event.key === 'ArrowDown') { event.preventDefault(); links[(index + 1) % links.length].focus(); }
+      if (event.key === 'ArrowUp') { event.preventDefault(); if (!index) input.focus(); else links[index - 1].focus(); }
+      if (event.key === 'Home') { event.preventDefault(); links[0].focus(); }
+      if (event.key === 'End') { event.preventDefault(); links.at(-1).focus(); }
+    });
+  }
+})();
