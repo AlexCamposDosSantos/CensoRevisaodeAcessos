@@ -50,8 +50,10 @@ $censoContexto = str_contains($uri, '/users/')
 <!-- Menu lateral -->
 <nav class="sidebar" id="sidebar" aria-label="Navegação principal">
   <div class="brand">
-    <span class="brand-nome"><img src="<?= BASE_URL ?>/assets/img/marca-clara.svg" alt="" width="30" height="30">Censo</span>
-    <small>Revisão de acessos — Segurança da Informação</small>
+    <a class="brand-lockup" href="<?= BASE_URL ?>/dashboard.php" aria-label="Censo — ir para o painel">
+      <img src="<?= BASE_URL ?>/assets/img/marca.svg" alt="" width="42" height="42">
+      <span class="brand-copy"><span class="brand-nome">Censo</span><small>Revisão de acessos</small></span>
+    </a>
   </div>
 
   <div class="mt-2 d-flex flex-column flex-grow-1">
