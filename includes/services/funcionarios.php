@@ -96,10 +96,11 @@ function funcionarios_cargas(): array
 
 /**
  * Importa a base (substitui a anterior; o arquivo original de cada carga fica
- * guardado). Aceita .csv, .xlsx ou .zip com um .csv/.xlsx dentro.
+ * guardado). Aceita .csv, .xlsx ou .zip com um .csv/.xlsx dentro. $usuario null =
+ * baixada do SharePoint pelo próprio Censo.
  * @return array{linhas:int, ativos:int}
  */
-function funcionarios_importar(string $tmp, string $nomeOriginal, int $usuario): array
+function funcionarios_importar(string $tmp, string $nomeOriginal, ?int $usuario): array
 {
     funcionarios_estrutura();
     $ext = strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION));

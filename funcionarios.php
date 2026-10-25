@@ -6,12 +6,16 @@
  */
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/services/cobranca.php';
+require_once __DIR__ . '/includes/services/basefull.php';
 require_admin();
 
 $consulta = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_ok()) {
         flash('erro', 'Sessão expirada. Tente novamente.');
+    } elseif (($_POST['acao'] ?? '') === 'sharepoint') {
+        $r = basefull_sincronizar();
+        flash(['importada' => 'ok', 'atual' => 'ok', 'desligada' => 'aviso'][$r['status']] ?? 'erro', $r['texto']);
     } else {
         $up = $_FILES['arquivo'] ?? null;
         if (!$up || $up['error'] === UPLOAD_ERR_NO_FILE) {
@@ -79,7 +83,7 @@ require_once __DIR__ . '/includes/views/header.php';
             </div>
           </div>
           <div class="small text-muted">
-            <?= e($atual['nome_original']) ?> · enviado por <?= e($atual['enviado_por_nome'] ?? '—') ?> em <?= date('d/m/Y H:i', strtotime($atual['enviado_em'])) ?>
+            <?= e($atual['nome_original']) ?> · <?= $atual['enviado_por'] === null ? 'baixada do SharePoint' : 'enviado por ' . e($atual['enviado_por_nome'] ?? '—') ?> em <?= date('d/m/Y H:i', strtotime($atual['enviado_em'])) ?>
           </div>
         <?php else: ?>
           <div class="text-muted">Nenhuma base carregada ainda. Sem ela, as cobranças não sabem quem é o líder de cada pessoa
@@ -96,14 +100,24 @@ require_once __DIR__ . '/includes/views/header.php';
         <form method="POST" enctype="multipart/form-data">
           <?= csrf_field() ?>
           <input type="file" name="arquivo" class="form-control mb-2" accept=".csv,.xlsx,.zip" required>
-          <div class="form-text mb-3">A <strong>BaseFull</strong> diária do RH serve direto (.csv). Ela tem ~40 MB —
-            acima do limite de upload deste servidor (<?= e(ini_get('upload_max_filesize')) ?>), envie <strong>compactada em .zip</strong>.
-            A carga substitui a anterior; o arquivo de cada carga fica guardado.</div>
+          <div class="form-text mb-3">
+            <?php if (basefull_configurado()): ?>
+              A BaseFull do dia é baixada sozinha do SharePoint a cada <strong>Atualizar andamento</strong> (e na atualização automática).
+              O envio manual fica para quando o SharePoint estiver fora.
+            <?php else: ?>
+              Para baixar a BaseFull sozinho do SharePoint, o Censo usa as credenciais <code>SHAREPOINT_*</code> do <code>.env</code> do Prumo — não as encontrei.
+            <?php endif; ?>
+            Manualmente: a BaseFull (.csv, ~40 MB) passa do limite de upload deste servidor (<?= e(ini_get('upload_max_filesize')) ?>) — envie
+            <strong>compactada em .zip</strong>. A carga substitui a anterior.</div>
           <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary"><i class="bi bi-upload me-1"></i> Carregar base</button>
+            <?php if (basefull_configurado()): ?>
+              <button type="submit" form="form-sharepoint" class="btn btn-outline-primary"><i class="bi bi-cloud-download me-1"></i> Baixar do SharePoint agora</button>
+            <?php endif; ?>
             <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/modelo.php?tipo=funcionarios"><i class="bi bi-file-earmark-arrow-down me-1"></i> Baixar modelo</a>
           </div>
         </form>
+        <form method="POST" id="form-sharepoint"><?= csrf_field() ?><input type="hidden" name="acao" value="sharepoint"></form>
       </div>
     </div>
   </div>
@@ -138,9 +152,9 @@ require_once __DIR__ . '/includes/views/header.php';
         <tr>
           <td class="ps-4 fw-semibold"><?= e($c['nome_original']) ?></td>
           <td><?= $n($c['linhas']) ?></td><td><?= $n($c['ativos']) ?></td>
-          <td><?= e($c['enviado_por_nome'] ?? '—') ?></td>
+          <td><?= $c['enviado_por'] === null ? '<i class="bi bi-cloud-download me-1 text-muted"></i>SharePoint' : e($c['enviado_por_nome'] ?? '—') ?></td>
           <td><?= date('d/m/Y H:i', strtotime($c['enviado_em'])) ?></td>
-          <td class="text-end pe-4"><a class="btn btn-sm btn-outline-primary" href="?baixar=<?= (int) $c['id'] ?>"><i class="bi bi-download"></i></a></td>
+          <td class="text-end pe-4"><?php if (is_file(pasta_funcionarios() . '/' . basename($c['arquivo']))): ?><a class="btn btn-sm btn-outline-primary" href="?baixar=<?= (int) $c['id'] ?>"><i class="bi bi-download"></i></a><?php else: ?><span class="small text-muted" title="Só os <?= BASEFULL_GUARDAR ?> últimos downloads automáticos ficam guardados">apagado</span><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$cargas): ?><tr><td colspan="6" class="text-center text-muted py-4">Nenhuma carga ainda.</td></tr><?php endif; ?>

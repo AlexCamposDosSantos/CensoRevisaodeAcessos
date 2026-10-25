@@ -71,7 +71,8 @@ require_once __DIR__ . '/includes/views/header.php';
     <tbody>
       <?php foreach ($envios as $e): [$rot, $cls] = $rotSt[$e['status']]; ?>
         <tr>
-          <td class="ps-4"><div class="fw-semibold"><?= e($e['para_nome']) ?></div><div class="text-muted"><?= e($e['para_email']) ?></div></td>
+          <td class="ps-4"><div class="fw-semibold"><?= e($e['para_nome']) ?></div><div class="text-muted"><?= e($e['para_email']) ?></div>
+            <?php if (($e['delegados'] ?? '') !== ''): ?><div class="mt-1"><span class="tag-copia">Delegado</span> <span class="text-muted"><?= e($e['delegados']) ?></span></div><?php endif; ?></td>
           <td class="text-muted"><?= e($e['cc']) ?: '—' ?></td>
           <td class="text-muted"><?= e($e['cco'] ?? '') ?: '—' ?></td>
           <td class="text-end fw-semibold"><?= $n($e['qtd']) ?></td>

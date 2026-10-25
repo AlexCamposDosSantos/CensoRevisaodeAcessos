@@ -98,16 +98,20 @@ function lista_emails(string|array $bruto): array
 }
 
 /**
- * Envia um e-mail. $cc / $cco: listas de endereços. Devolve null quando foi
+ * Envia um e-mail. $para: um endereço ou uma lista; $cc / $cco: listas de endereços. Devolve null quando foi
  * aceito, ou a mensagem de erro. $naoEnviar: e-mails que este envio NUNCA alcança
  * (a lista "não enviar" da cobrança) — em Cc/Cco são retirados; como
  * destinatário, o envio é recusado. É a barreira final, depois da prévia.
  */
-function email_enviar(string $remetente, string $para, string $paraNome, array $cc, string $assunto,
+function email_enviar(string $remetente, string|array $para, string $paraNome, array $cc, string $assunto,
                       string $corpo, string $topo, string $rodape, array $cco = [], array $naoEnviar = []): ?string
 {
     $bloq = array_flip(array_map(fn($e) => strtolower(trim($e)), $naoEnviar));
-    if (isset($bloq[strtolower(trim($para))])) return 'Destinatário está na lista de "não enviar" desta cobrança — nada foi enviado.';
+    // Vários destinatários (relatório) ou um só (cobrança, com nome)
+    $paras = array_values(array_unique(array_map(fn($e) => strtolower(trim($e)), (array) $para)));
+    foreach ($paras as $p) {
+        if (isset($bloq[$p])) return 'Destinatário está na lista de "não enviar" desta cobrança — nada foi enviado.';
+    }
     try {
         $token = graph_token($remetente);
     } catch (Throwable $e) {
@@ -132,14 +136,14 @@ function email_enviar(string $remetente, string $para, string $paraNome, array $
 
     $limpa = fn(array $lista, array $tirar) => array_values(array_unique(array_filter(array_map(fn($e) => strtolower(trim($e)), $lista),
         fn($e) => $e !== '' && !in_array($e, $tirar, true) && filter_var($e, FILTER_VALIDATE_EMAIL) && !isset($bloq[$e]))));
-    $cc  = $limpa($cc, [strtolower($para)]);
-    $cco = $limpa($cco, array_merge([strtolower($para)], $cc));   // quem já está em Para/Cc não repete em Cco
+    $cc  = $limpa($cc, $paras);
+    $cco = $limpa($cco, array_merge($paras, $cc));   // quem já está em Para/Cc não repete em Cco
 
     $payload = [
         'message' => [
             'subject'      => $assunto,
             'body'         => ['contentType' => 'HTML', 'content' => email_html($corpo, $topo, $rodape, true)],
-            'toRecipients' => [['emailAddress' => ['address' => $para, 'name' => $paraNome]]],
+            'toRecipients' => array_map(fn($e) => ['emailAddress' => array_filter(['address' => $e, 'name' => count($paras) === 1 ? $paraNome : ''])], $paras),
             'ccRecipients' => array_map(fn($e) => ['emailAddress' => ['address' => $e]], $cc),
             'bccRecipients' => array_map(fn($e) => ['emailAddress' => ['address' => $e]], $cco),
             'from'         => ['emailAddress' => ['address' => $remetente, 'name' => $conta['nome'] ?? $remetente]],

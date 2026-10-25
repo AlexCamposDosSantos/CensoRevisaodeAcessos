@@ -1,5 +1,5 @@
-# Configurações privadas nunca são entregues por HTTP.
-<FilesMatch "(?i)^(?:\.env(?:\..*)?|config(?:\.local(?:\.example)?)?\.php)$">
+# Configurações privadas e a linha de comando nunca são entregues por HTTP.
+<FilesMatch "(?i)^(?:\.env(?:\..*)?|config(?:\.local(?:\.example)?)?\.php|cli\.php)$">
 <IfModule mod_authz_core.c>
     Require all denied
 </IfModule>

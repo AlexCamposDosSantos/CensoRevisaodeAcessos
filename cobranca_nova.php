@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 '[TESTE] ' . cobranca_aplicar($modelo['assunto'], $ctx, $g['pessoas'], $o['alvo'] === 'superior', false),
                 '<p style="background:#fff4e5;border:1px solid #f0c27b;padding:8px 12px;border-radius:6px;font-size:13px;color:#7a4b00;">'
                 . '<strong>Teste</strong> — este e-mail iria para <strong>' . e($g['nome']) . ' &lt;' . e($g['email']) . '&gt;</strong>'
+                . ($g['delegados'] ? ' e o(s) delegado(s) de gestão <strong>' . e(implode(', ', array_map(fn($d) => $d['nome'] . ' <' . $d['email'] . '>', $g['delegados']))) . '</strong>' : '')
                 . ($g['cc'] ? ', com cópia (Cc) para ' . e(implode(', ', $g['cc'])) : '')
                 . ($g['cco'] ? ' e cópia oculta (Cco) para ' . e(implode(', ', $g['cco'])) : '') . '.</p>'
                 . cobranca_aplicar($modelo['corpo'], $ctx, $g['pessoas'], $o['alvo'] === 'superior'),
@@ -187,6 +188,13 @@ require_once __DIR__ . '/includes/views/header.php';
     <?php endforeach; ?>
   </div>
 
+  <?php $lidas = delegacoes_leitura(); ?>
+  <?php if (!empty($plano['com_delegado'])): ?>
+    <div class="alert alert-info small"><i class="bi bi-person-badge me-1"></i> <?= $n($plano['com_delegado']) ?> destinatário(s) com <strong>delegação de gestão</strong> vigente no Horacius — o delegado recebe o mesmo e-mail, junto, no "Para".
+      <span class="text-muted">Delegações lidas em <?= $lidas ? date('d/m/Y H:i', strtotime($lidas['em'])) : '—' ?>.</span></div>
+  <?php elseif (!$lidas): ?>
+    <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i> As delegações de gestão ainda não foram lidas do Horacius. Use "Atualizar andamento" no painel antes de enviar.</div>
+  <?php endif; ?>
   <?php if (!empty($plano['copias_bloqueadas'])): ?>
     <div class="alert alert-info small"><i class="bi bi-slash-circle me-1"></i> <?= $n($plano['copias_bloqueadas']) ?> cópia(s) retirada(s) por estarem em "não enviar para".</div>
   <?php endif; ?>
@@ -199,7 +207,10 @@ require_once __DIR__ . '/includes/views/header.php';
           <thead class="table-light" style="position:sticky;top:0"><tr><th class="ps-3">Recebe</th><th>Cópias</th><th class="text-end pe-3">Pessoas</th></tr></thead>
           <tbody>
             <?php foreach ($plano['grupos'] as $g): ?>
-              <tr><td class="ps-3"><div class="fw-semibold"><?= e($g['nome']) ?></div><div class="text-muted"><?= e($g['email']) ?></div></td>
+              <tr><td class="ps-3"><div class="fw-semibold"><?= e($g['nome']) ?></div><div class="text-muted"><?= e($g['email']) ?></div>
+                    <?php foreach ($g['delegados'] as $d): ?>
+                      <div class="mt-1"><span class="tag-copia" title="Delegação de gestão no Horacius<?= $d['datafim'] ? ' até ' . date('d/m/Y', strtotime($d['datafim'])) : ', sem prazo' ?>">Delegado</span> <?= e($d['nome']) ?> <span class="text-muted"><?= e($d['email']) ?></span></div>
+                    <?php endforeach; ?></td>
                   <td class="text-muted">
                     <?php if ($g['cc']): ?><div><span class="tag-copia">Cc</span> <?= e(implode(', ', $g['cc'])) ?></div><?php endif; ?>
                     <?php if ($g['cco']): ?><div><span class="tag-copia tag-cco">Cco</span> <?= e(implode(', ', $g['cco'])) ?></div><?php endif; ?>

@@ -57,15 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="login-page">
   <div class="login-container">
     <div class="login-side">
-      <div class="login-brand"><img src="<?= BASE_URL ?>/assets/img/marca.svg" alt="" width="39" height="39">Censo<span class="visually-hidden"> — Revisão de acessos</span></div>
+      <img class="login-art" src="<?= BASE_URL ?>/assets/img/login-revisao-acessos.png" alt="" aria-hidden="true" fetchpriority="high" width="1448" height="1086">
+      <div class="login-brand"><img src="<?= BASE_URL ?>/assets/img/marca-clara.svg" alt="" width="39" height="39">Censo<span class="visually-hidden"> — Revisão de acessos</span></div>
       <div class="login-copy">
         <div class="eyebrow">Governança de acessos</div>
         <h2>Clareza para revisar.<br><em>Confiança para avançar.</em></h2>
         <p>Pessoas, acessos e responsáveis conectados. Acompanhe cada etapa e saiba onde agir.</p>
-        <div class="login-features"><span><i class="bi bi-list-check" aria-hidden="true"></i>Revisões</span><span><i class="bi bi-send" aria-hidden="true"></i>Cobranças</span><span><i class="bi bi-graph-up" aria-hidden="true"></i>Acompanhamento</span></div>
       </div>
       <div class="login-side-foot"><i class="bi bi-shield-check" aria-hidden="true"></i>Segurança da Informação · Ecossistema Ânima</div>
-      <div class="login-orbit" aria-hidden="true"></div>
     </div>
 
     <div class="login-form">

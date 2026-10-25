@@ -15,6 +15,7 @@
 require_once __DIR__ . '/revisao.php';
 require_once __DIR__ . '/funcionarios.php';
 require_once __DIR__ . '/email.php';
+require_once __DIR__ . '/delegacao.php';
 
 /** Variáveis que um modelo pode usar (para a tela de modelos). */
 const VARIAVEIS_COBRANCA = [
@@ -84,6 +85,10 @@ function cobranca_estrutura(): void
     ");
     if (!in_array('cco', array_column($pdo->query('PRAGMA table_info(cobranca_envios)')->fetchAll(), 'name'), true)) {
         $pdo->exec("ALTER TABLE cobranca_envios ADD COLUMN cco TEXT NOT NULL DEFAULT ''");
+    }
+    // Delegados de gestão do destinatário (Horacius): vão JUNTO no "Para"
+    if (!in_array('delegados', array_column($pdo->query('PRAGMA table_info(cobranca_envios)')->fetchAll(), 'name'), true)) {
+        $pdo->exec("ALTER TABLE cobranca_envios ADD COLUMN delegados TEXT NOT NULL DEFAULT ''");
     }
     if (!in_array('nao_enviar', array_column($pdo->query('PRAGMA table_info(cobrancas)')->fetchAll(), 'name'), true)) {
         $pdo->exec("ALTER TABLE cobrancas ADD COLUMN nao_enviar TEXT NOT NULL DEFAULT ''");   // um e-mail por linha
@@ -211,7 +216,11 @@ function cobranca_planejar(array $o): array
             continue;
         }
         $k = $dest['email'];
-        $grupos[$k] ??= ['email' => $dest['email'], 'nome' => $dest['nome'], 'cc' => [], 'cco' => [], 'pessoas' => []];
+        if (!isset($grupos[$k])) {
+            // Delegação de gestão vigente no Horacius: o delegado recebe junto
+            $dels = array_values(array_filter(delegados_de($dest), fn($d) => !$bloqueado($d['email'])));
+            $grupos[$k] = ['email' => $dest['email'], 'nome' => $dest['nome'], 'delegados' => $dels, 'cc' => [], 'cco' => [], 'pessoas' => []];
+        }
         if (!empty($o['copiar_outro']) && ($outro['ok'] ?? false)) {
             $grupos[$k][($o['tipo_copia_outro'] ?? 'cc') === 'cco' ? 'cco' : 'cc'][] = $outro['email'];
         }
@@ -223,14 +232,16 @@ function cobranca_planejar(array $o): array
         $g[(($o['tipo_copia_fixa'] ?? 'cc') === 'cco') ? 'cco' : 'cc'] = array_merge($g[(($o['tipo_copia_fixa'] ?? 'cc') === 'cco') ? 'cco' : 'cc'], $fixa);
         foreach (['cc', 'cco'] as $tipo) {
             $bloqueados += count(array_filter(array_unique($g[$tipo]), $bloqueado));
-            $g[$tipo] = array_values(array_unique(array_filter($g[$tipo], fn($e) => $e !== $g['email'] && !$bloqueado($e))));
+            $para = array_merge([$g['email']], array_column($g['delegados'], 'email'));   // quem está no "Para" não repete em cópia
+            $g[$tipo] = array_values(array_unique(array_filter($g[$tipo], fn($e) => !in_array($e, $para, true) && !$bloqueado($e))));
         }
         $g['cco'] = array_values(array_diff($g['cco'], $g['cc']));
         usort($g['pessoas'], fn($a, $b) => strcmp($a['nome'], $b['nome']));
     }
     unset($g);
     uasort($grupos, fn($a, $b) => count($b['pessoas']) <=> count($a['pessoas']) ?: strcmp($a['nome'], $b['nome']));
-    return ['grupos' => array_values($grupos), 'sem_destino' => $sem, 'total' => count($pessoas), 'copias_bloqueadas' => $bloqueados];
+    return ['grupos' => array_values($grupos), 'sem_destino' => $sem, 'total' => count($pessoas), 'copias_bloqueadas' => $bloqueados,
+            'com_delegado' => count(array_filter($grupos, fn($g) => $g['delegados']))];
 }
 
 /** [válidos, inválidos] de uma lista "a@b.com; c@d.com". */
@@ -264,11 +275,11 @@ function cobranca_criar(array $o, array $plano, array $modelo, int $usuario): in
 ", $o['nao_enviar'] ?? [])]);
         $id  = (int) $pdo->lastInsertId();
         $rev = revisao((int) $o['revisao_id']);
-        $insE = $pdo->prepare('INSERT INTO cobranca_envios (cobranca_id, para_email, para_nome, cc, cco, assunto, corpo, topo, rodape, qtd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $insE = $pdo->prepare('INSERT INTO cobranca_envios (cobranca_id, para_email, para_nome, delegados, cc, cco, assunto, corpo, topo, rodape, qtd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $insP = $pdo->prepare('INSERT INTO cobranca_pessoas (envio_id, revisao_id, codigo) VALUES (?, ?, ?)');
         foreach ($plano['grupos'] as $g) {
             $ctx = ['nome' => $g['nome'], 'prazo' => $o['prazo'] ?? '', 'revisao' => $rev['nome'] ?? ''];
-            $insE->execute([$id, $g['email'], $g['nome'], implode(', ', $g['cc']), implode(', ', $g['cco']),
+            $insE->execute([$id, $g['email'], $g['nome'], implode(', ', array_column($g['delegados'] ?? [], 'email')), implode(', ', $g['cc']), implode(', ', $g['cco']),
                             cobranca_aplicar($modelo['assunto'], $ctx, $g['pessoas'], $o['alvo'] === 'superior', false),
                             cobranca_aplicar($modelo['corpo'], $ctx, $g['pessoas'], $o['alvo'] === 'superior'),
                             $modelo['topo'], $modelo['rodape'], count($g['pessoas'])]);
@@ -318,7 +329,9 @@ function cobranca_enviar_lote(int $id, int $n = 5): array
     $st->execute([$id]);
     $upd = db()->prepare("UPDATE cobranca_envios SET status = ?, erro = ?, enviado_em = datetime('now','localtime') WHERE id = ?");
     foreach ($st->fetchAll() as $e) {
-        $erro = email_enviar($c['remetente'], $e['para_email'], $e['para_nome'], $e['cc'] !== '' ? explode(', ', $e['cc']) : [],
+        // Com delegado, os dois vão no "Para"; sem, só o destinatário (com o nome)
+        $para = ($e['delegados'] ?? '') !== '' ? array_merge([$e['para_email']], explode(', ', $e['delegados'])) : $e['para_email'];
+        $erro = email_enviar($c['remetente'], $para, $e['para_nome'], $e['cc'] !== '' ? explode(', ', $e['cc']) : [],
                              $e['assunto'], $e['corpo'], $e['topo'], $e['rodape'],
                              ($e['cco'] ?? '') !== '' ? explode(', ', $e['cco']) : [],
                              lista_emails((string) ($c['nao_enviar'] ?? ''))[0]);

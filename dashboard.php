@@ -80,11 +80,19 @@ require_once __DIR__ . '/includes/views/header.php';
   </div>
   <a href="<?= BASE_URL ?>/pendentes.php?r=<?= (int) $rev['id'] ?>" class="btn">Ver pendentes <i class="bi bi-arrow-up-right ms-2" aria-hidden="true"></i></a>
 </section>
-<section class="summary-grid" aria-label="Indicadores da revisão">
-  <div class="summary-card"><div class="summary-label">Pessoas na revisão <i class="bi bi-people" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totC + $totP) ?></strong><div class="summary-note">Base total deste ciclo</div></div>
-  <div class="summary-card"><div class="summary-label">Concluídas <i class="bi bi-check2-circle" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totC) ?></strong><div class="summary-note">Pessoas que já revisaram</div></div>
-  <div class="summary-card"><div class="summary-label">Pendentes <i class="bi bi-hourglass-split" aria-hidden="true"></i></div><strong class="summary-value"><?= $n($totP) ?></strong><div class="summary-note">Pessoas que faltam revisar</div></div>
-  <div class="summary-card"><div class="summary-label">Progresso geral <i class="bi bi-graph-up-arrow" aria-hidden="true"></i></div><strong class="summary-value"><?= pct($totC, $totC + $totP) ?>%</strong><div class="summary-note">Conclusão da revisão</div></div>
+<?php $gm = $grupos[GRUPO_META] ?? ['concluido' => 0, 'pendente' => 0]; $tm = $gm['concluido'] + $gm['pendente']; ?>
+<!-- O número que conta é o do grupo da meta; os demais ficam ao lado, menores -->
+<section class="summary-grid summary-meta" aria-label="Indicadores da revisão">
+  <div class="summary-card summary-card-meta">
+    <div class="summary-label">Meta da revisão · <?= e(GRUPO_META) ?> <i class="bi bi-bullseye" aria-hidden="true"></i></div>
+    <strong class="summary-value"><?= pct($gm['concluido'], $tm) ?>%</strong>
+    <div class="meter my-2" role="img" aria-label="<?= pct($gm['concluido'], $tm) ?>% concluído"><span style="width:<?= $tm ? round(100 * $gm['concluido'] / $tm, 2) : 0 ?>%"></span></div>
+    <div class="summary-note"><strong><?= $n($gm['concluido']) ?></strong> de <?= $n($tm) ?> já revisaram · <strong><?= $n($gm['pendente']) ?></strong> pendentes</div>
+  </div>
+  <?php foreach ($grupos as $nomeG => $g): if ($nomeG === GRUPO_META) continue; $t = $g['concluido'] + $g['pendente']; ?>
+    <div class="summary-card"><div class="summary-label"><?= e($nomeG) ?> <i class="bi bi-mortarboard" aria-hidden="true"></i></div><strong class="summary-value"><?= pct($g['concluido'], $t) ?>%</strong><div class="summary-note"><?= $n($g['pendente']) ?> pendentes de <?= $n($t) ?></div></div>
+  <?php endforeach; ?>
+  <div class="summary-card"><div class="summary-label">Geral — todos os vínculos <i class="bi bi-people" aria-hidden="true"></i></div><strong class="summary-value"><?= pct($totC, $totC + $totP) ?>%</strong><div class="summary-note"><?= $n($totP) ?> pendentes de <?= $n($totC + $totP) ?></div></div>
 </section>
 
 <!-- Cabeçalho: qual revisão, desde quando, de onde vem cada número -->
@@ -143,7 +151,7 @@ require_once __DIR__ . '/includes/views/header.php';
 
 <div class="review-refresh-status" id="reviewRefreshStatus" role="status" aria-live="polite" hidden>
   <span class="spinner-border" aria-hidden="true"></span>
-  <div><strong>Atualizando a revisão…</strong><p>Consultando o Horacius e procurando os líderes na BaseFull importada. O painel será recarregado ao concluir.</p><small>Aguarde; a atualização pode levar alguns instantes.</small></div>
+  <div><strong>Atualizando a revisão…</strong><p>Baixando a BaseFull do dia do SharePoint, consultando o Horacius e cruzando os líderes. O painel será recarregado ao concluir.</p><small>Quando há BaseFull nova, a atualização leva cerca de um minuto.</small></div>
 </div>
 <div class="alert alert-danger" data-refresh-error role="alert" hidden></div>
 
@@ -160,7 +168,7 @@ require_once __DIR__ . '/includes/views/header.php';
       <div class="card h-100 group-card"><div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
-            <div class="fw-bold"><?= e($nomeG) ?></div>
+            <div class="fw-bold"><?= e($nomeG) ?><?= $nomeG === GRUPO_META ? ' <span class="badge badge-admin ms-1">meta da revisão</span>' : '' ?></div>
             <div class="small text-muted"><?= $n($t) ?> pessoas na revisão</div>
           </div>
           <a href="<?= BASE_URL ?>/pendentes.php?r=<?= (int) $rev['id'] ?>&amp;grupo=<?= urlencode($nomeG) ?>" class="small">ver pendentes</a>

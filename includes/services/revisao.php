@@ -22,6 +22,12 @@ const VINCULOS = [
     'Polo'         => 'Empregado, Terceirizado e Polo',
     'Professor'    => 'Professor',
 ];
+/**
+ * O grupo que conta para a meta da revisão. É o número que vai em destaque no
+ * painel, no relatório e no assunto do e-mail; o total geral (com Professor)
+ * aparece, mas como secundário.
+ */
+const GRUPO_META = 'Empregado, Terceirizado e Polo';
 /** Como o BI: vínculo que vem "0" ou vazio na base entra como Polo. */
 const VINCULO_ALIAS = ['0' => 'Polo', '' => 'Polo'];
 
